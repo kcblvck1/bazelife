@@ -1,1 +1,0 @@
-The hostel blueprint at hostel-blueprint.jpg is the supplied 220 sq. ft. two-bed room reference. Hostel geometry is assembled from 3D primitives in js/world/world3d.js and includes the attached ensuite. Building cutaway view style is referenced from ../maps/building-interior-view-reference.png.
