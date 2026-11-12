@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#20344a">
+  <title>BAZE LIFE — Baze University Student Simulator</title>
+  <link rel="stylesheet" href="./css/main.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <section id="auth-screen" class="auth-screen">
+    <div class="auth-showcase">
+      <div class="auth-brand"><span class="brand-mark">B</span><span>BAZE <b>LIFE</b></span></div>
+      <div class="showcase-copy">
+        <p class="eyebrow">YOUR CAMPUS. YOUR STORY.</p>
+        <h1>University life<br><em>is what you make it.</em></h1>
+        <p>Explore Baze University, meet students, attend classes, build your finances and create your own campus story.</p>
+        <div class="showcase-stats"><span>🏫 <b>Campus life</b></span><span>🚕 <b>Side hustles</b></span><span>🫂 <b>Student community</b></span></div>
+      </div>
+      <div class="showcase-campus"><img src="./assets/maps/baze-life-3d-style-reference.png" alt="BAZE LIFE campus map preview"></div>
+    </div>
+    <div class="auth-side">
+      <div class="auth-card">
+        <div class="auth-mobile-brand">🎓 BAZE LIFE</div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="login-tab" type="button">Log in</button>
+          <button class="auth-tab" id="signup-tab" type="button">Create account</button>
+        </div>
+        <div id="login-form-wrap">
+          <h2>Welcome back</h2><p class="muted">Log in to continue your student life.</p>
+          <form id="login-form">
+            <label>Username or email<input id="login-username" autocomplete="username" required minlength="3" placeholder="Local username or online email"></label>
+            <label>Password<input id="login-password" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+            <button class="primary full" type="submit">Log in to Baze Life <span>→</span></button>
+          </form>
+        </div>
+        <div id="signup-form-wrap" hidden>
+          <h2>Create your student</h2><p class="muted">Your new life starts in your hostel room.</p>
+          <form id="signup-form">
+            <label>Student name<input id="signup-name" required maxlength="28" placeholder="e.g. Chika Okafor"></label>
+            <label>Email address <small class="muted">Required for cross-device multiplayer</small><input id="signup-email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+            <label>Username<input id="signup-username" autocomplete="username" required minlength="3" maxlength="18" pattern="[A-Za-z0-9_]+" placeholder="Choose a username"></label>
+            <label>Password<input id="signup-password" type="password" autocomplete="new-password" required minlength="4" placeholder="At least 4 characters"></label>
+            <label>Choose your character</label>
+            <div class="gender-choice character-choice">
+              <label class="gender-option"><input type="radio" name="gender" value="male" checked><img class="character-preview" src="./assets/characters/male-reference.webp" alt="Male character reference"><b>Male</b><small>Male Hostel</small></label>
+              <label class="gender-option"><input type="radio" name="gender" value="female"><img class="character-preview" src="./assets/characters/female-reference.webp" alt="Female character reference"><b>Female</b><small>Female Hostel</small></label>
+            </div>
+            <button class="primary full" type="submit">Create my Baze Life <span>→</span></button>
+          </form>
+        </div>
+        <p id="auth-message" class="auth-message" role="status"></p>
+        <p class="fine-print" id="backend-status">Local mode: accounts stay in this browser. Configure Supabase to enable online accounts, live profiles and chat.</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="game-screen" class="game-screen" hidden>
+    <header class="topbar">
+      <div class="brand-lockup"><span class="brand-mark small">B</span><div>BAZE <b>LIFE</b><small>BAZE UNIVERSITY · ABUJA</small></div></div>
+      <div class="top-stats">
+        <div class="top-pill"><small>DAY & TIME</small><strong id="clock-display">Monday · 08:00 AM</strong></div>
+        <div class="top-pill cash-pill"><small>WALLET</small><strong id="cash-display">₦100,000</strong></div>
+        <div class="top-pill profile-pill"><span id="profile-avatar">👨🏽‍🎓</span><strong id="profile-name">Student</strong></div>
+        <button class="quiet-button" id="logout-button">Log out</button>
+      </div>
+    </header>
+
+    <section class="needs-strip" aria-label="Student needs">
+      <div class="need" data-need="hunger"><div><span>🍔 Hunger</span><b id="hunger-value">100%</b></div><i><span id="hunger-bar"></span></i></div>
+      <div class="need" data-need="energy"><div><span>⚡ Energy</span><b id="energy-value">100%</b></div><i><span id="energy-bar"></span></i></div>
+      <div class="need" data-need="fun"><div><span>🎉 Fun</span><b id="fun-value">100%</b></div><i><span id="fun-bar"></span></i></div>
+      <div class="need" data-need="social"><div><span>🫂 Social</span><b id="social-value">100%</b></div><i><span id="social-bar"></span></i></div>
+      <div class="need" data-need="hygiene"><div><span>🧼 Hygiene</span><b id="hygiene-value">100%</b></div><i><span id="hygiene-bar"></span></i></div>
+      <div class="need" data-need="bladder"><div><span>🚻 Bladder</span><b id="bladder-value">100%</b></div><i><span id="bladder-bar"></span></i></div>
+    </section>
+
+    <main class="game-layout">
+      <section class="world-column">
+        <div class="world-heading">
+          <div><p class="eyebrow" id="scene-kicker">YOUR ROOM</p><h1 id="scene-title">Your Hostel</h1><p id="scene-subtitle">You wake up at Baze University.</p></div>
+          <div class="world-heading-actions"><button class="secondary-button" id="open-map-button">🗺 Campus map</button><button class="primary" id="open-phone-button">▦ Open phone</button></div>
+        </div>
+        <div class="scene-frame" id="scene-frame">
+          <div id="world-canvas" class="world-canvas"></div>
+          <div id="map-marker-layer" class="map-marker-layer" hidden></div>
+          <div class="scene-chip" id="scene-chip">📍 Male Hostel</div>
+          <div class="scene-tip" id="scene-tip">Tap a spot to walk there · Tap a bed to rest or sleep</div>
+          <div class="map-controls" id="map-controls" hidden><button id="zoom-in">＋</button><button id="zoom-out">－</button><button id="map-reset">⌖</button></div>
+          <div class="mobile-movement" id="mobile-movement" hidden>
+            <button data-move="forward">▲</button><div><button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button></div>
+          </div>
+          <button class="map-back-button" id="map-back-button" hidden>← Return to location</button>
+        </div>
+        <div class="scene-bottom">
+          <div class="activity-card"><span class="activity-icon">✦</span><div><b id="activity-title">Welcome to Baze University</b><p id="activity-message">You are in your hostel. Open your phone to explore campus.</p></div></div>
+          <div class="actions-card"><div class="actions-heading"><b>Available actions</b><span id="location-type">HOSTEL</span></div><div id="action-buttons" class="action-buttons"></div></div>
+        </div>
+      </section>
+
+      <aside class="side-column">
+        <section class="phone-teaser card"><div class="card-heading"><span>▦</span><b>Student phone</b><button id="phone-chevron" aria-label="Open phone">↗</button></div><div class="phone-teaser-body"><div class="phone-mini"><span>▦</span></div><div><b>Your campus in your pocket</b><p>Map · Wallet · Jobs · Social · Profile</p><button class="text-button" id="phone-teaser-open">Open phone →</button></div></div></section>
+        <section class="card task-card"><div class="card-heading"><span>✦</span><b>Daily goals</b></div><p id="goal-text">Explore campus and look after your needs.</p><div class="goal-progress"><span id="goal-progress-bar"></span></div><small id="goal-progress-label">0 / 5 ProTaxi rides</small></section>
+        <section class="card quick-card"><div class="card-heading"><span>⚡</span><b>Quick actions</b></div><button data-quick="save">💾 Save progress</button><button data-quick="rest">😴 Rest (+25 energy)</button><button data-quick="food">🍔 Find food</button></section>
+        <section class="card hint-card"><b>How to play</b><p>Use your phone's Campus Map to travel. Inside buildings, tap the floor to walk and tap objects to interact.</p></section>
+      </aside>
+    </main>
+
+    <div id="phone-overlay" class="phone-overlay" hidden>
+      <div class="phone-shell">
+        <div class="phone-notch"></div>
+        <div class="phone-status"><span id="phone-time">08:00</span><span>●●● ▰</span></div>
+        <div class="phone-home" id="phone-home">
+          <div class="phone-greeting"><small>BAZE UNIVERSITY</small><h2>Hi, <span id="phone-student-name">Student</span> 👋</h2><p>What are we doing today?</p></div>
+          <div class="phone-app-grid">
+            <button data-app="map"><span class="app-icon map-app">🗺️</span>Campus Map</button>
+            <button data-app="food"><span class="app-icon food-app">🍔</span>Food</button>
+            <button data-app="jobs"><span class="app-icon jobs-app">💼</span>Jobs</button>
+            <button data-app="activities"><span class="app-icon activity-app">📅</span>Activities</button>
+            <button data-app="social"><span class="app-icon social-app">🫂</span>Social</button>
+            <button data-app="profile"><span class="app-icon profile-app">👤</span>Profile</button>
+            <button data-app="wallet"><span class="app-icon wallet-app">💳</span>Wallet</button>
+            <button data-app="home"><span class="app-icon home-app">🏠</span>My Hostel</button>
+            <button data-app="save"><span class="app-icon save-app">💾</span>Save</button>
+          </div>
+          <div class="phone-dock"><span>☎</span><span>🌐</span><span>✉</span><span>⚙</span></div>
+        </div>
+        <div class="phone-bottom"><button id="close-phone">Close phone</button></div>
+      </div>
+    </div>
+
+    <div id="map-screen" class="map-screen" hidden>
+      <header class="map-screen-header"><div><p class="eyebrow">BAZE UNIVERSITY · ABUJA</p><h2>Campus map</h2><p>Rotate, zoom and select a location to travel there.</p></div><button id="close-map">✕ Close map</button></header>
+      <div class="map-screen-body" id="map-screen-body"><div id="map-canvas" class="map-canvas"></div><div id="map-marker-layer-full" class="map-marker-layer"></div><div class="map-screen-controls"><button id="map-zoom-in" type="button" aria-label="Zoom in">＋</button><button id="map-zoom-out" type="button" aria-label="Zoom out">－</button><button id="map-reset-view" type="button" aria-label="Reset map view">⌖</button></div>
+        <div class="map-legend"><b>Campus locations</b><span>🎓 Academic</span><span>🏠 Hostels</span><span>🍴 Restaurants</span><span>⚽ Recreation</span></div>
+      </div>
+      <div class="map-screen-footer"><span>Tap a location marker to enter</span><span>Drag to rotate · Scroll to zoom</span></div>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true"><div class="modal-header"><h2 id="modal-title">BAZE LIFE</h2><button id="modal-close" aria-label="Close">×</button></div><div id="modal-content"></div></section></div>
+    <div id="toast" class="toast" role="status"></div>
+  </div>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
