@@ -6,7 +6,9 @@ let communityProfile = null;
 let communityLocation = "Campus";
 let communityStatus = "CLOSED";
 let lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
-let lastPresenceSentAt = 0;
+let lastPositionBroadcastAt = 0;
+let lastPresenceTrackAt = 0;
+let presenceTrackTimer = null;
 const configured = /^https:\/\/.+\.supabase\.co$/.test(SUPABASE_URL) &&
   SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes("YOUR_");
 
@@ -120,7 +122,10 @@ export async function logoutOnlineStudent() {
   communityLocation = "Campus";
   communityStatus = "CLOSED";
   lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
-  lastPresenceSentAt = 0;
+  lastPositionBroadcastAt = 0;
+  lastPresenceTrackAt = 0;
+  if (presenceTrackTimer) clearTimeout(presenceTrackTimer);
+  presenceTrackTimer = null;
   if (client) {
     const { error } = await client.auth.signOut();
     if (error) throw error;
@@ -147,11 +152,12 @@ export async function updateOnlineLocation(profile, location) {
   const { error } = await client.from("profiles").update({ location, last_seen: seenAt }).eq("id", profile.id);
   if (error) throw error;
 
-  // Keep the latest room name and re-track the complete presence payload.
-  // Tracking only profile fields here used to overwrite x/z/rotation until
-  // the next movement tick, leaving a newly-arrived player at the wrong spot.
+  // Presence is only for slow-changing state (identity and room).
+  // Position updates travel over Broadcast to avoid Supabase's per-client
+  // Presence limit. Only re-track when the room actually changes.
+  const locationChanged = communityLocation !== location;
   communityLocation = location;
-  if (communityProfile?.id === profile.id && communityStatus === "SUBSCRIBED") {
+  if (locationChanged && communityProfile?.id === profile.id && communityStatus === "SUBSCRIBED") {
     await trackCommunityPresence();
   }
 }
@@ -190,21 +196,41 @@ export async function sendDirectMessage(profile, recipientId, body) {
   if(!client||!profile?.id||!recipientId) throw new Error("Log in online to message another student.");
   const clean=String(body||"").trim().slice(0,500);
   if(!clean) return;
-  const {error}=await client.from("direct_messages").insert({
-    sender_id:profile.id,recipient_id:recipientId,body:clean
+
+  // Use the authenticated Supabase account as the sender, never a stale UI
+  // profile object. This keeps sender_id aligned with auth.uid() in the RLS rule.
+  const { data: { user }, error: authError } = await client.auth.getUser();
+  if (authError) throw authError;
+  if (!user?.id) throw new Error("Your online session has expired. Log out and sign in again.");
+  if (user.id !== profile.id) {
+    throw new Error("Your active Supabase login does not match this game profile. Log out and sign in again.");
+  }
+  if (user.id === recipientId) throw new Error("You cannot send a private message to yourself.");
+
+  const { error } = await client.from("direct_messages").insert({
+    sender_id: user.id,
+    recipient_id: recipientId,
+    body: clean
   });
-  if(error) throw error;
+  if (error) throw error;
 }
 
-async function trackCommunityPresence(position = null) {
-  if (position) {
-    lastPresencePosition = {
-      x: Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
-      z: Number.isFinite(Number(position.z)) ? Number(position.z) : 0,
-      rotation: Number.isFinite(Number(position.rotation)) ? Number(position.rotation) : 0
-    };
-  }
+async function trackCommunityPresence() {
   if (!client || !communityChannel || communityStatus !== "SUBSCRIBED" || !communityProfile?.id) return false;
+
+  // Supabase currently permits at most 5 Presence updates per client in 30s.
+  // Keep a safety margin and coalesce rapid room changes into one latest state.
+  const cooldownMs = 8000;
+  const elapsed = Date.now() - lastPresenceTrackAt;
+  if (lastPresenceTrackAt && elapsed < cooldownMs) {
+    if (!presenceTrackTimer) {
+      presenceTrackTimer = setTimeout(() => {
+        presenceTrackTimer = null;
+        trackCommunityPresence().catch(error => console.warn("Presence room update failed.", error));
+      }, cooldownMs - elapsed + 100);
+    }
+    return true;
+  }
 
   const result = await communityChannel.track({
     user_id: communityProfile.id,
@@ -218,7 +244,7 @@ async function trackCommunityPresence(position = null) {
     online_at: new Date().toISOString()
   });
   if (result !== "ok") throw new Error(`Supabase presence update failed: ${result}.`);
-  lastPresenceSentAt = Date.now();
+  lastPresenceTrackAt = Date.now();
   return true;
 }
 
@@ -226,11 +252,32 @@ export async function publishPlayerPosition(profile, location, position) {
   if (!client || !communityChannel || !profile?.id || communityStatus !== "SUBSCRIBED") return;
   if (communityProfile?.id !== profile.id) return;
 
-  // Ignore movement updates that arrive too quickly; presence is a roster, not
-  // a 60fps movement stream. The renderer interpolates between these snapshots.
-  if (Date.now() - lastPresenceSentAt < 300) return;
+  // Position is high-frequency game state: send Broadcast, not Presence.
+  // Presence is reserved for online identity and current room only.
+  const now = Date.now();
+  if (now - lastPositionBroadcastAt < 300) return;
+  lastPositionBroadcastAt = now;
+
   communityLocation = location;
-  await trackCommunityPresence(position);
+  const payload = {
+    user_id: profile.id,
+    username: profile.username,
+    display_name: profile.name,
+    gender: profile.gender,
+    location,
+    x: Number.isFinite(Number(position?.x)) ? Number(position.x) : 0,
+    z: Number.isFinite(Number(position?.z)) ? Number(position.z) : 2.5,
+    rotation: Number.isFinite(Number(position?.rotation)) ? Number(position.rotation) : 0,
+    sent_at: new Date(now).toISOString()
+  };
+  const result = await communityChannel.send({
+    type: "broadcast",
+    event: "player_position",
+    payload
+  });
+  if (result === "error" || result === "timed out") {
+    throw new Error("Supabase Realtime could not broadcast your player position.");
+  }
 }
 
 export async function loadRecentMessages(limit = 40) {
@@ -260,15 +307,40 @@ export async function subscribeToCampus(profile, location, onPresence, onMessage
   communityLocation = location;
   communityStatus = "CONNECTING";
   lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
-  lastPresenceSentAt = 0;
+  lastPositionBroadcastAt = 0;
+  lastPresenceTrackAt = 0;
+  if (presenceTrackTimer) clearTimeout(presenceTrackTimer);
+  presenceTrackTimer = null;
 
   communityChannel = client.channel("baze-life-campus", {
-    config: { presence: { key: profile.id } }
+    config: {
+      presence: { key: profile.id },
+      broadcast: { ack: true }
+    }
   });
   communityChannel
     .on("presence", { event: "sync" }, () => {
       try { onPresence(communityChannel.presenceState()); }
       catch (error) { console.error("Could not render campus presence roster.", error); }
+    })
+    .on("broadcast", { event: "player_position" }, event => {
+      const update = event?.payload;
+      if (!update?.user_id || update.user_id === profile.id) return;
+      try {
+        const presence = communityChannel.presenceState();
+        let matched = false;
+        const nextPresence = {};
+        for (const [key, entries] of Object.entries(presence)) {
+          nextPresence[key] = (Array.isArray(entries) ? entries : []).map(entry => {
+            if (entry?.user_id !== update.user_id) return entry;
+            matched = true;
+            return { ...entry, ...update };
+          });
+        }
+        if (matched) onPresence(nextPresence);
+      } catch (error) {
+        console.error("Could not apply remote player position.", error);
+      }
     })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, payload => onMessage(payload.new))
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, payload => onDirectMessage(payload.new));
