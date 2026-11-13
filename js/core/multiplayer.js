@@ -112,7 +112,8 @@ export async function loginOnlineStudent(email, password) {
     gender: profile?.gender || meta.gender || "male",
     email: data.user.email,
     onboardingRequired: Number(meta.onboarding_version || 0) >= 1 && !meta.baze_life_game?.onboardingComplete,
-    gameSetup: meta.baze_life_game || null
+    gameSetup: meta.baze_life_game || null,
+    appearance: meta.baze_life_game?.appearance || null
   };
 }
 
@@ -272,6 +273,7 @@ async function trackCommunityPresence() {
     username: communityProfile.username,
     display_name: communityProfile.name,
     gender: communityProfile.gender,
+    appearance: communityProfile.appearance || null,
     location: communityLocation,
     x: lastPresencePosition.x,
     z: lastPresencePosition.z,
@@ -299,6 +301,7 @@ export async function publishPlayerPosition(profile, location, position) {
     username: profile.username,
     display_name: profile.name,
     gender: profile.gender,
+    appearance: profile.appearance || null,
     location,
     x: Number.isFinite(Number(position?.x)) ? Number(position.x) : 0,
     z: Number.isFinite(Number(position?.z)) ? Number(position.z) : 2.5,
