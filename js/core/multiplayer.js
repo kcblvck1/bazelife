@@ -42,7 +42,7 @@ export async function registerOnlineStudent({ email, password, name, username, g
     password,
     options: {
       emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
-      data: { name: cleanName, username: cleanUsername, gender: gender === "female" ? "female" : "male" }
+      data: { name: cleanName, username: cleanUsername, gender: gender === "female" ? "female" : "male", onboarding_version: 1 }
     }
   });
   if (error) throw error;
@@ -110,8 +110,20 @@ export async function loginOnlineStudent(email, password) {
     name: profile?.display_name || meta.name || "Student",
     username: profile?.username || meta.username || data.user.email.split("@")[0],
     gender: profile?.gender || meta.gender || "male",
-    email: data.user.email
+    email: data.user.email,
+    onboardingRequired: Number(meta.onboarding_version || 0) >= 1 && !meta.baze_life_game?.onboardingComplete,
+    gameSetup: meta.baze_life_game || null,
+    appearance: meta.baze_life_game?.appearance || null
   };
+}
+
+export async function saveOnlineGameSetup(setup) {
+  if (!client) throw new Error("Online account setup is unavailable.");
+  const { data, error } = await client.auth.updateUser({
+    data: { onboarding_version: 1, baze_life_game: setup }
+  });
+  if (error) throw error;
+  return data.user?.user_metadata?.baze_life_game || setup;
 }
 
 export async function logoutOnlineStudent() {
@@ -261,6 +273,7 @@ async function trackCommunityPresence() {
     username: communityProfile.username,
     display_name: communityProfile.name,
     gender: communityProfile.gender,
+    appearance: communityProfile.appearance || null,
     location: communityLocation,
     x: lastPresencePosition.x,
     z: lastPresencePosition.z,
@@ -288,6 +301,7 @@ export async function publishPlayerPosition(profile, location, position) {
     username: profile.username,
     display_name: profile.name,
     gender: profile.gender,
+    appearance: profile.appearance || null,
     location,
     x: Number.isFinite(Number(position?.x)) ? Number(position.x) : 0,
     z: Number.isFinite(Number(position?.z)) ? Number(position.z) : 2.5,
