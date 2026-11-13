@@ -7,11 +7,11 @@ import { renderFoodHTML, purchaseFood } from "./systems/restaurants.js";
 import { doTaxiRide, doTutoring, doFreelance } from "./systems/jobs.js";
 import { performActivity } from "./systems/activities.js";
 import { bindPhone } from "./interface/phone.js";
-import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, sendDirectMessage, publishPlayerPosition } from "./core/multiplayer.js";
+import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition } from "./core/multiplayer.js";
 
 const $=id=>document.getElementById(id);
 let state=null,world=null,phone=null,toastTimer=null,tickTimer=null,onlineProfile=null,liveChannel=null,livePresence={};
-let mapWasOpen=false,presenceTimer=null,directChatTarget=null;
+let mapWasOpen=false,presenceTimer=null,directChatTarget=null,bazetalkUnread={},bazetalkLastRead={};
 
 function toast(message){const el=$("toast");el.textContent=message;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,2800);}
 function setActivity(title,message){$("activity-title").textContent=title;$("activity-message").textContent=message;if(state)state.lastAction=message;}
@@ -61,10 +61,13 @@ async function handleLogin(event){event.preventDefault();const username=$("login
 $("signup-form").addEventListener("submit",handleSignup);$("login-form").addEventListener("submit",handleLogin);
 
 function startGame(user,playerState){
- state=playerState;$("auth-screen").hidden=true;$("game-screen").hidden=false;
+ state=playerState;
+ if(onlineProfile?.id){try{bazetalkUnread=JSON.parse(localStorage.getItem("bazetalk-unread:"+onlineProfile.id)||"{}")||{};bazetalkLastRead=JSON.parse(localStorage.getItem("bazetalk-lastread:"+onlineProfile.id)||"{}")||{};}catch{bazetalkUnread={};bazetalkLastRead={};}}else{bazetalkUnread={};bazetalkLastRead={};}
+ updateBazeTalkBadge();
+ $("auth-screen").hidden=true;$("game-screen").hidden=false;
  $("profile-name").textContent=user.name;$("profile-avatar").textContent=user.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓";$("phone-student-name").textContent=user.name.split(" ")[0];
  const current=LOCATIONS.find(p=>p.name===state.location);if(!current)state.location=getHostelForGender(user.gender)==="female-hostel"?"Female Hostel":"Male Hostel";
- if(!world){world=new World3D($("world-canvas"),$("map-marker-layer"),place=>enterLocation(place),()=>openBedOptions());}
+ if(!world){world=new World3D($("world-canvas"),$("map-marker-layer"),place=>enterLocation(place),()=>openBedOptions(),action=>openFixtureOptions(action));}
  else world.renderInterior(current||LOCATIONS.find(p=>p.name===state.location),state.gender);
  enterLocation(LOCATIONS.find(p=>p.name===state.location)||LOCATIONS.find(p=>p.id===getHostelForGender(user.gender)),true);
  renderActions();updateHUD();phone?.close();if(!phone)phone=bindPhone({onApp:handlePhoneApp});
@@ -129,7 +132,7 @@ $("map-zoom-in").addEventListener("click",()=>world.zoom(-9));
 $("map-zoom-out").addEventListener("click",()=>world.zoom(9));
 $("map-reset-view").addEventListener("click",()=>world.resetMapCamera());
 
-function renderActions(){const place=LOCATIONS.find(p=>p.name===state.location);const actions=[];if(place.type==="hostel"){actions.push(["😴 Sleep","sleep"],["🚿 Shower","shower"],["🚻 Use toilet","toilet"],["🛌 Rest","rest"]);}if(place.type==="classroom"||place.type==="library"){actions.push(["📖 Study","study"],["🔎 Research","research"],["🫂 Talk to students","social"]);}if(place.type==="restaurant"){actions.push(["🍴 View menu","food"],["🫂 Socialise","social"]);}if(place.type==="sports"){actions.push(["⚽ Play / exercise","exercise"],["🎉 Have fun","fun"],["😴 Rest","rest"]);}if(place.type==="social"){actions.push(["🫂 Socialise","social"],["🎮 Have fun","fun"],["😴 Rest","rest"]);}if(place.type==="office"||place.type==="medical"||place.type==="gate"||place.type==="shop"){actions.push(["🫂 Talk to students","social"],["📋 Check information","admin"]);}actions.push(["📱 Open phone","phone"]);const host=$("action-buttons");host.innerHTML="";for(const [label,key] of actions){const b=document.createElement("button");b.textContent=label;b.addEventListener("click",()=>key==="phone"?phone.open():key==="food"?openFood():runActivity(key));host.appendChild(b);}}
+function renderActions(){const place=LOCATIONS.find(p=>p.name===state.location);const actions=[];if(place.type==="hostel"){actions.push(["😴 Sleep","sleep"],["🛌 Rest","rest"]);}if(place.type==="classroom"||place.type==="library"){actions.push(["📖 Study","study"],["🔎 Research","research"],["🫂 Talk to students","social"]);}if(place.type==="restaurant"){actions.push(["🍴 View menu","food"],["🫂 Socialise","social"]);}if(place.type==="sports"){actions.push(["⚽ Play / exercise","exercise"],["🎉 Have fun","fun"],["😴 Rest","rest"]);}if(place.type==="social"){actions.push(["🫂 Socialise","social"],["🎮 Have fun","fun"],["😴 Rest","rest"]);}if(place.type==="office"||place.type==="medical"||place.type==="gate"||place.type==="shop"){actions.push(["🫂 Talk to students","social"],["📋 Check information","admin"]);}actions.push(["📱 Open phone","phone"]);const host=$("action-buttons");host.innerHTML="";for(const [label,key] of actions){const b=document.createElement("button");b.textContent=label;b.addEventListener("click",()=>key==="phone"?phone.open():key==="food"?openFood():runActivity(key));host.appendChild(b);}}
 function advanceTime(minutes){let total=state.hour*60+state.minute+minutes;while(total>=1440){total-=1440;state.day++;state.rides=0;state.taxiBonusClaimed=false;}state.hour=Math.floor(total/60);state.minute=total%60;decayNeeds(state,minutes);}
 function gameTick(){if(!state||$("game-screen").hidden)return;advanceTime(1);updateHUD();savePlayer(state);}
 function openBedOptions(){
@@ -138,12 +141,37 @@ function openBedOptions(){
  $("bed-rest").onclick=()=>{closeModal();runActivity("rest");};
  $("bed-sleep").onclick=()=>{closeModal();runActivity("sleep");};
 }
+function openFixtureOptions(action){
+ if(LOCATIONS.find(p=>p.name===state.location)?.type!=="hostel")return;
+ const toilet=action==="toilet";
+ openModal(toilet?"Use the toilet":"Take a shower",toilet
+  ?`<p class="empty-note">Walk into the ensuite, sit down and use the toilet for 3 seconds.</p><div class="bed-choice-actions"><button id="fixture-confirm">🚻 Use the toilet <small>3 seconds</small></button></div>`
+  :`<p class="empty-note">Walk into the ensuite and shower for 7 seconds.</p><div class="bed-choice-actions"><button id="fixture-confirm">🚿 Shower <small>7 seconds</small></button></div>`);
+ $("fixture-confirm").onclick=()=>{closeModal();runFixtureAction(action);};
+}
+function runFixtureAction(action){
+ const duration=action==="toilet"?3000:7000;
+ const buttons=$("action-buttons");buttons.querySelectorAll("button").forEach(b=>b.disabled=true);
+ $("open-map-button").disabled=true;$("open-phone-button").disabled=true;
+ world?.playFixtureAction(action,duration,()=>{
+   buttons.querySelectorAll("button").forEach(b=>b.disabled=false);
+   $("open-map-button").disabled=false;$("open-phone-button").disabled=false;
+   const result=performActivity(state,action);
+   if(!result.ok){toast(result.message);return;}
+   if(result.minutes)advanceTime(result.minutes);
+   setActivity(action==="toilet"?"Bathroom break":"Shower completed",result.message);
+   toast(result.message);updateHUD();savePlayer(state);
+ });
+ setActivity(action==="toilet"?"Using the toilet…":"Showering…",action==="toilet"?"Your character is walking into the bathroom.":"Your character is walking to the bathtub.");
+}
+
 function runActivity(action){
  const finish=()=>{const result=performActivity(state,action);if(!result.ok){toast(result.message);return;}if(result.minutes)advanceTime(result.minutes);setActivity("Activity completed",result.message);toast(result.message);updateHUD();savePlayer(state);};
  const current=LOCATIONS.find(p=>p.name===state.location);
  if((action==="rest"||action==="sleep")&&current?.type==="hostel"){
    const buttons=$("action-buttons");buttons.querySelectorAll("button").forEach(b=>b.disabled=true);
-   world?.playBedAction(action,action==="sleep"?10000:5000,()=>{buttons.querySelectorAll("button").forEach(b=>b.disabled=false);finish();});
+   $("open-map-button").disabled=true;$("open-phone-button").disabled=true;
+   world?.playBedAction(action,action==="sleep"?10000:5000,()=>{buttons.querySelectorAll("button").forEach(b=>b.disabled=false);$("open-map-button").disabled=false;$("open-phone-button").disabled=false;finish();});
    setActivity(action==="sleep"?"Sleeping…":"Resting…", "Your character is lying down on the hostel bed.");return;
  }
  finish();
@@ -179,7 +207,7 @@ async function connectCampusCommunity(){
   },message=>{
    if($("modal-title")?.textContent==="T Social"){const stream=$("campus-chat-stream");if(stream){stream.insertAdjacentHTML("beforeend",chatMessageHTML(message));stream.scrollTop=stream.scrollHeight;}}
   },message=>{
-   if(directChatTarget&&(message.sender_id===directChatTarget.id||message.recipient_id===directChatTarget.id))refreshDirectConversation(directChatTarget,true).catch(console.warn);
+   handleIncomingDirectMessage(message).catch(error=>console.warn("BazeTalk incoming message handler failed.",error));
   },status=>{
    if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){
     console.warn("Supabase Realtime status:",status);
@@ -286,9 +314,143 @@ async function refreshDirectConversation(user,keepScroll=false){
  if(!keepScroll||wasAtBottom)stream.scrollTop=stream.scrollHeight;
 }
 function escapeHTML(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+function unreadCountFor(userId){return (bazetalkUnread[userId]||[]).length;}
+function unreadTotal(){return Object.values(bazetalkUnread).reduce((sum,ids)=>sum+(Array.isArray(ids)?ids.length:0),0);}
+function persistBazeTalkUnread(){
+ if(!onlineProfile?.id)return;
+ try{localStorage.setItem("bazetalk-unread:"+onlineProfile.id,JSON.stringify(bazetalkUnread));}catch(error){console.warn("Could not save BazeTalk unread state.",error);}
+}
+function persistBazeTalkLastRead(){
+ if(!onlineProfile?.id)return;
+ try{localStorage.setItem("bazetalk-lastread:"+onlineProfile.id,JSON.stringify(bazetalkLastRead));}catch(error){console.warn("Could not save BazeTalk read state.",error);}
+}
+function updateBazeTalkBadge(){
+ const count=unreadTotal(),badge=$("bazetalk-app-badge");
+ if(!badge)return;badge.textContent=count>99?"99+":String(count);badge.hidden=count===0;
+}
+function markBazeTalkRead(userId){
+ if(!userId)return;
+ delete bazetalkUnread[userId];bazetalkLastRead[userId]=Date.now();
+ persistBazeTalkUnread();persistBazeTalkLastRead();updateBazeTalkBadge();
+}
+function bazetalkAvatar(user){
+ return user?.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓";
+}
+function openBazeTalk(){
+ if(!multiplayerEnabled()||!onlineProfile?.id){
+   phone?.close();openModal("BazeTalk",`<p class="empty-note">BazeTalk needs an online student account. Sign in with your email to message students across devices.</p>`);return;
+ }
+ phone?.open();
+ $("phone-home").hidden=true;$("bazetalk-view").hidden=false;
+ $("bazetalk-inbox-view").hidden=false;$("bazetalk-conversation").hidden=true;
+ $("bazetalk-search-results").innerHTML="";$("bazetalk-search-form").hidden=true;
+ directChatTarget=null;
+ if("Notification" in window && Notification.permission==="default"){
+   try{Notification.requestPermission().catch(()=>{});}catch{}
+ }
+ $("bazetalk-back").onclick=()=>{
+   $("bazetalk-view").hidden=true;$("phone-home").hidden=false;directChatTarget=null;
+ };
+ $("bazetalk-search-toggle").onclick=()=>{
+   const form=$("bazetalk-search-form");form.hidden=!form.hidden;
+   if(!form.hidden)$("bazetalk-search-input").focus();
+   else $("bazetalk-search-results").innerHTML="";
+ };
+ $("bazetalk-chat-back").onclick=()=>{
+   $("bazetalk-conversation").hidden=true;$("bazetalk-inbox-view").hidden=false;directChatTarget=null;refreshBazeTalkInbox().catch(console.warn);
+ };
+ $("bazetalk-search-form").onsubmit=async event=>{
+   event.preventDefault();const query=$("bazetalk-search-input").value.trim();
+   if(query.replace(/^@/,"").length<2){toast("Enter at least 2 characters of a username.");return;}
+   const target=$("bazetalk-search-results");target.innerHTML=`<p class="bazetalk-empty">Searching students…</p>`;
+   try{
+     const found=await searchRegisteredUsers(query,onlineProfile.id);
+     if(!found.length){target.innerHTML=`<p class="bazetalk-empty">No students match that username.</p>`;return;}
+     target.innerHTML=found.map(user=>`<button type="button" class="bazetalk-contact" data-search-user="${escapeHTML(user.id)}"><span class="bazetalk-avatar">${bazetalkAvatar(user)}</span><span class="bazetalk-contact-copy"><b>${escapeHTML(user.display_name||user.username)}</b><small>@${escapeHTML(user.username)} · ${escapeHTML(user.location||"Baze campus")}</small></span><span class="bazetalk-contact-meta">Message</span></button>`).join("");
+     target.querySelectorAll("[data-search-user]").forEach(button=>button.onclick=()=>{const user=found.find(item=>item.id===button.dataset.searchUser);if(user)openBazeTalkConversation(user).catch(error=>toast(error.message||"Could not open chat."));});
+   }catch(error){target.innerHTML=`<p class="bazetalk-empty">${escapeHTML(error.message||"Student search failed.")}</p>`;}
+ };
+ $("direct-message-form").onsubmit=async event=>{
+   event.preventDefault();const input=$("direct-message-input"),body=input.value.trim(),user=directChatTarget;
+   if(!body||!user)return;
+   const sendButton=$("direct-message-form").querySelector("button");sendButton.disabled=true;
+   try{
+     await sendDirectMessage(onlineProfile,user.id,body);input.value="";
+     await refreshBazeTalkConversation(user,true);await refreshBazeTalkInbox();
+   }catch(error){toast(error.message||"Message could not be sent.");}
+   finally{sendButton.disabled=false;input.focus();}
+ };
+ refreshBazeTalkInbox().catch(error=>{$("bazetalk-contact-list").innerHTML=`<p class="bazetalk-empty">${escapeHTML(error.message||"Could not load messages.")}</p>`;});
+}
+async function refreshBazeTalkInbox(){
+ if(!onlineProfile?.id||$("bazetalk-view").hidden)return;
+ const host=$("bazetalk-contact-list");
+ const conversations=await loadDirectInbox(onlineProfile.id);
+ if(!conversations.length){host.innerHTML=`<p class="bazetalk-empty">No conversations yet. Tap “＋ New” to find a student and start chatting.</p>`;return;}
+ host.innerHTML=conversations.map(({user,lastMessage,messages=[]})=>{
+   const lastRead=Number(bazetalkLastRead[user.id]||0);
+   const unseenIds=messages.filter(message=>message.sender_id!==onlineProfile.id&&Date.parse(message.created_at||0)>lastRead).map(message=>message.id);
+   if(unseenIds.length){bazetalkUnread[user.id]=[...new Set([...(bazetalkUnread[user.id]||[]),...unseenIds])];}
+   const unread=unreadCountFor(user.id),body=String(lastMessage?.body||"").slice(0,48);
+   const time=lastMessage?.created_at?new Date(lastMessage.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";
+   return `<button type="button" class="bazetalk-contact" data-contact-id="${escapeHTML(user.id)}">
+     <span class="bazetalk-avatar">${bazetalkAvatar(user)}</span>
+     <span class="bazetalk-contact-copy"><b>${escapeHTML(user.display_name||user.username)}</b><small>${lastMessage?.sender_id===onlineProfile.id?"You: ":""}${escapeHTML(body)}</small></span>
+     <span class="bazetalk-contact-meta">${time}${unread?`<span class="bazetalk-unread">${unread>99?"99+":unread}</span>`:""}</span>
+   </button>`;
+ }).join("");
+ persistBazeTalkUnread();updateBazeTalkBadge();
+ host.querySelectorAll("[data-contact-id]").forEach(button=>{
+   button.onclick=()=>{
+     const item=conversations.find(({user})=>user.id===button.dataset.contactId);
+     if(item)openBazeTalkConversation(item.user).catch(error=>toast(error.message||"Could not open chat."));
+   };
+ });
+}
+async function openBazeTalkConversation(user){
+ directChatTarget=user;markBazeTalkRead(user.id);
+ $("bazetalk-inbox-view").hidden=true;$("bazetalk-conversation").hidden=false;
+ $("bazetalk-chat-contact").innerHTML=`<b>${escapeHTML(user.display_name||user.username)}</b><small>@${escapeHTML(user.username)}</small>`;
+ await refreshBazeTalkConversation(user,false);
+ $("direct-message-input").focus();
+}
+async function refreshBazeTalkConversation(user,keepScroll=false){
+ const stream=$("direct-message-stream");if(!stream||!onlineProfile?.id||!user?.id)return;
+ const wasAtBottom=stream.scrollHeight-stream.scrollTop-stream.clientHeight<50;
+ const messages=await loadDirectMessages(onlineProfile.id,user.id);
+ stream.innerHTML=messages.map(message=>{
+   const outgoing=message.sender_id===onlineProfile.id;
+   const time=new Date(message.created_at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+   return `<article class="bazetalk-message ${outgoing?"outgoing":""}"><p>${escapeHTML(message.body||"")}</p><time>${time}</time></article>`;
+ }).join("")||`<p class="bazetalk-empty">No messages yet. Say hello to @${escapeHTML(user.username)}.</p>`;
+ if(!keepScroll||wasAtBottom)stream.scrollTop=stream.scrollHeight;
+}
+async function handleIncomingDirectMessage(message){
+ if(!message?.id||message.recipient_id!==onlineProfile?.id||message.sender_id===onlineProfile.id)return;
+ const conversationOpen=!$("bazetalk-view").hidden&&!$("bazetalk-conversation").hidden&&directChatTarget?.id===message.sender_id;
+ if(conversationOpen)markBazeTalkRead(message.sender_id);
+ else{
+   const ids=bazetalkUnread[message.sender_id]||[];
+   if(!ids.includes(message.id)){bazetalkUnread[message.sender_id]=[...ids,message.id];persistBazeTalkUnread();updateBazeTalkBadge();}
+ }
+ let senderName="student",senderProfile=null;
+ try{const inbox=await loadDirectInbox(onlineProfile.id);senderProfile=inbox.find(item=>item.user.id===message.sender_id)?.user;senderName=senderProfile?.username||senderName;}catch{}
+ toast(`New BazeTalk message from @${senderName}`);
+ if("Notification" in window && Notification.permission==="granted"){
+   try{
+     const notice=new Notification("BazeTalk · New message",{body:`@${senderName}: ${String(message.body||"").slice(0,110)}`,tag:"bazetalk-"+message.id});
+     notice.onclick=()=>{window.focus();openBazeTalk();if(senderProfile)openBazeTalkConversation(senderProfile).catch(console.warn);};
+   }catch(error){console.warn("Browser notification could not be shown.",error);}
+ }
+ if(!$("bazetalk-view").hidden){
+   await refreshBazeTalkInbox();
+   if(conversationOpen&&directChatTarget)await refreshBazeTalkConversation(directChatTarget,true);
+ }
+}
 function openProfile(){openModal("Student profile",`<div class="modal-row"><div><b>${state.name}</b><small>@${state.username} · ${state.gender} student</small></div><strong>${state.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓"}</strong></div><div class="modal-row"><div><b>Academic progress</b><small>${state.studyPoints} study points</small></div><strong>Level ${1+Math.floor(state.studyPoints/10)}</strong></div><div class="modal-row"><div><b>Reputation</b><small>Baze points</small></div><strong>${state.reputation}</strong></div><div class="modal-row"><div><b>Home</b><small>Your assigned accommodation</small></div><strong>${state.gender==="female"?"Female":"Male"} Hostel</strong></div>`);}
 function openWallet(){openModal("Wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">Starting balance: ₦100,000. Earn money through ProTaxi, tutoring and freelancing.</p>`);}
-function handlePhoneApp(app){phone.close();switch(app){case"map":openMap();break;case"food":openFood();break;case"jobs":openJobs();break;case"activities":openActivities();break;case"social":openSocial();break;case"profile":openProfile();break;case"wallet":openWallet();break;case"home":enterLocation(LOCATIONS.find(p=>p.id===getHostelForGender(state.gender)));break;case"save":savePlayer(state);toast("Game saved on this device.");break;}}
+function handlePhoneApp(app){if(app==="bazetalk"){openBazeTalk();return;}phone.close();switch(app){case"map":openMap();break;case"food":openFood();break;case"jobs":openJobs();break;case"activities":openActivities();break;case"social":openSocial();break;case"profile":openProfile();break;case"wallet":openWallet();break;case"home":enterLocation(LOCATIONS.find(p=>p.id===getHostelForGender(state.gender)));break;case"save":savePlayer(state);toast("Game saved on this device.");break;}}
 
 $("phone-teaser-open").addEventListener("click",()=>phone?.open());
 document.querySelectorAll("[data-quick]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.quick;if(a==="save"){savePlayer(state);toast("Game saved.");}if(a==="rest")runActivity("rest");if(a==="food")openFood();}));

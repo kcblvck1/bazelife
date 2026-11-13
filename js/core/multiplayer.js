@@ -192,6 +192,30 @@ export async function loadDirectMessages(currentUserId, otherUserId, limit=60) {
   return data||[];
 }
 
+export async function loadDirectInbox(currentUserId, limit=80) {
+  if(!client||!currentUserId) return [];
+  const {data:messages,error}=await client.from("direct_messages")
+    .select("id,sender_id,recipient_id,body,created_at")
+    .or(`sender_id.eq.${currentUserId},recipient_id.eq.${currentUserId}`)
+    .order("created_at",{ascending:false}).limit(limit);
+  if(error) throw error;
+  const peerIds=[...new Set((messages||[]).map(m=>m.sender_id===currentUserId?m.recipient_id:m.sender_id).filter(Boolean))];
+  if(!peerIds.length) return [];
+  const {data:profiles,error:profileError}=await client.from("profiles")
+    .select("id,username,display_name,gender,location").in("id",peerIds);
+  if(profileError) throw profileError;
+  const profileMap=new Map((profiles||[]).map(p=>[p.id,p]));
+  const conversations=new Map();
+  for(const message of messages||[]){
+    const peerId=message.sender_id===currentUserId?message.recipient_id:message.sender_id;
+    if(!conversations.has(peerId)){
+      conversations.set(peerId,{user:profileMap.get(peerId)||{id:peerId,username:"student",display_name:"Student",gender:"male"},lastMessage:message,messages:[]});
+    }
+    conversations.get(peerId).messages.push(message);
+  }
+  return [...conversations.values()];
+}
+
 export async function sendDirectMessage(profile, recipientId, body) {
   if(!client||!profile?.id||!recipientId) throw new Error("Log in online to message another student.");
   const clean=String(body||"").trim().slice(0,500);
@@ -343,7 +367,9 @@ export async function subscribeToCampus(profile, location, onPresence, onMessage
       }
     })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, payload => onMessage(payload.new))
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, payload => onDirectMessage(payload.new));
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages", filter: `recipient_id=eq.${profile.id}` }, payload => {
+      if(payload?.new?.recipient_id===profile.id && payload.new.sender_id!==profile.id) onDirectMessage(payload.new);
+    });
 
   await new Promise((resolve, reject) => {
     let settled = false;
