@@ -63,7 +63,7 @@ body,.game-screen{background:#34383d;color:#e4e7eb}
 .presence-dot.online{color:#70c995}
 
 /* BazeTalk: full-height phone messaging experience. */
-.phone-shell{width:min(390px,96vw);height:min(760px,94vh);max-height:94vh}
+
 .phone-home{min-height:0}
 .phone-app-grid .bazetalk-launch{position:relative}
 .app-unread-badge{position:absolute;top:-5px;right:13px;min-width:17px;height:17px;padding:0 5px;border-radius:10px;background:#d64e52;color:#fff;font-size:9px;font-weight:900;line-height:17px;text-align:center}
@@ -102,4 +102,4 @@ body,.game-screen{background:#34383d;color:#e4e7eb}
 .bazetalk-message time{display:block;margin-top:5px;text-align:right;color:#8291a1;font-size:8px}
 .bazetalk-compose{display:flex;gap:8px;align-items:center;padding:10px;background:#fff;border-top:1px solid #e4ebf1}
 .bazetalk-compose button{width:38px;height:38px;padding:0;border-radius:50%;font-size:17px}
-@media(max-width:600px){.phone-shell{width:min(390px,97vw);height:min(780px,96vh);max-height:96vh}.bazetalk-view{border-radius:18px}}
+@media(max-width:600px){.bazetalk-view{border-radius:18px}}
