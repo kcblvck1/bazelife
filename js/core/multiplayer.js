@@ -41,7 +41,7 @@ export async function registerOnlineStudent({ email, password, name, username, g
     email: cleanEmail,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
+      emailRedirectTo: "https://bazelife.vercel.app/",
       data: { name: cleanName, username: cleanUsername, gender: gender === "female" ? "female" : "male", onboarding_version: 1 }
     }
   });
