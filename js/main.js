@@ -1,4 +1,4 @@
-import { createNewState, money, getDayName, clampNeed } from "./core/state.js";
+import { createNewState, money, getDayName, clampNeed, DEFAULT_APPEARANCE } from "./core/state.js";
 import { addUser, findUser, getUsers, passwordHash, savePlayer, loadPlayer, loadLocalDirectMessages, sendLocalDirectMessage } from "./core/storage.js";
 import { LOCATIONS, getHostelForGender } from "./world/locations.js";
 import { World3D } from "./world/world3d.js";
@@ -7,11 +7,46 @@ import { renderFoodHTML, purchaseFood } from "./systems/restaurants.js";
 import { doTaxiRide, doTutoring, doFreelance } from "./systems/jobs.js";
 import { performActivity } from "./systems/activities.js";
 import { bindPhone } from "./interface/phone.js";
-import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition } from "./core/multiplayer.js";
+import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition, saveOnlineGameSetup } from "./core/multiplayer.js";
 
 const $=id=>document.getElementById(id);
 let state=null,world=null,phone=null,toastTimer=null,tickTimer=null,onlineProfile=null,liveChannel=null,livePresence={};
 let mapWasOpen=false,presenceTimer=null,directChatTarget=null,bazetalkUnread={},bazetalkLastRead={};
+let onboardingSession=null;
+
+const BAZE_UNDERGRADUATE_COURSES=[
+ "B.Eng. Civil Engineering","B.Eng. Computer Engineering","B.Eng. Electrical & Electronics Engineering",
+ "B.Eng. Mechanical Engineering","B.Eng. Petroleum & Gas Engineering","B.Eng. Telecommunications Engineering",
+ "LL.B. Law","LL.B. Business Law","LL.B. Private & Public Law",
+ "MBBS – Medicine and Surgery","B.Sc. Medical Laboratory Science (BMLS)","B.Sc. Public Health",
+ "B.Sc. Radiography & Radiation Science",
+ "B.Sc. Accounting","B.Sc. Banking & Finance","B.Sc. Business Management","B.Sc. Economics",
+ "B.Sc. Government & Public Administration","B.Sc. Insurance & Actuarial Science",
+ "B.Sc. International Relations & Diplomacy","B.Sc. Marketing","B.Sc. Mass Communication",
+ "B.Sc. Psychology","B.Sc. Sociology",
+ "B.Sc. Biological Sciences","B.Sc. Biotechnology","B.Sc. Communication Technology",
+ "B.Sc. Computer Science","B.Sc. Computing for Business","B.Sc. Financial Mathematics",
+ "B.Sc. Information Systems Management","B.Sc. Information Technology","B.Sc. Microbiology",
+ "B.Sc. Petroleum Chemistry","B.Sc. Physics with Computing","B.Sc. Software Engineering",
+ "B.Sc. Architecture","B.Sc. Building","B.Sc. Estate Management","B.Sc. Quantity Surveying",
+ "B.Sc. Surveying & Geoinformatics","B.Sc. Urban & Regional Planning",
+ "B.Sc. Human Anatomy","B.Sc. Human Physiology"
+];
+const APPEARANCE_CHOICES={
+ skinTone:{label:"Skin tone",swatches:true,options:[["Deep","#6f4635"],["Rich brown","#89583f"],["Warm brown","#a66d4e"],["Golden brown","#b77b5b"]]},
+ hairStyle:{label:"Hairstyle",options:[["Low cut","lowcut"],["Afro","afro"],["Braids","braids"],["Locs","locs"]]},
+ hairColor:{label:"Hair colour",swatches:true,options:[["Black","#211b18"],["Dark brown","#30241e"],["Soft black","#17191d"]]},
+ topStyle:{label:"Top / shirt",options:[["Campus tee","tshirt"],["Polo","polo"],["Hoodie","hoodie"],["Button-up","buttonup"]]},
+ topColor:{label:"Top colour",swatches:true,options:[["Navy blue","#4d7190"],["Burgundy","#813f55"],["Forest green","#416b58"],["Cream","#d5c9b1"],["Black","#292d33"]]},
+ bottomStyle:{label:"Bottom wear",options:[["Trousers","trousers"],["Skirt","skirt"]]},
+ bottomColor:{label:"Bottom colour",swatches:true,options:[["Deep navy","#26394e"],["Charcoal","#35414c"],["Brown","#6a5141"],["Black","#25272b"]]},
+ shoeColor:{label:"Footwear",swatches:true,options:[["Black","#20252b"],["White","#e4e3dc"],["Tan","#8b4f3d"]]}
+};
+const FATE_STEPS=[
+ {key:"course",title:"Which course will you study?",description:"Randomly selected from the undergraduate degree programmes in your supplied Baze University PDF.",icon:"🎓",options:BAZE_UNDERGRADUATE_COURSES},
+ {key:"level",title:"What level will you enter?",description:"Your university level is selected randomly. The available levels run from 100 to 500.",icon:"📚",options:["100 Level","200 Level","300 Level","400 Level","500 Level"]},
+ {key:"background",title:"What is your financial background?",description:"Your background decides your opening wallet and, for Amnesty students, the recurring school allowance.",icon:"💳",options:["Nepo Baby","Middle Class","Amnesty Student"]}
+];
 
 function toast(message){const el=$("toast");el.textContent=message;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,2800);}
 function setActivity(title,message){$("activity-title").textContent=title;$("activity-message").textContent=message;if(state)state.lastAction=message;}
@@ -19,6 +54,146 @@ function authMessage(message,isError=true){const el=$("auth-message");el.textCon
 const backendReady = await initMultiplayer();
 $("backend-status").textContent = backendReady.enabled ? "Online mode ready: create an account with an email to play across devices." : "Local mode: " + backendReady.reason + " Existing local accounts still work on this browser.";
 function switchAuth(mode){$("login-tab").classList.toggle("active",mode==="login");$("signup-tab").classList.toggle("active",mode==="signup");$("login-form-wrap").hidden=mode!=="login";$("signup-form-wrap").hidden=mode!=="signup";authMessage("");}
+
+function renderAppearanceControls(){
+ const host=$("appearance-controls");
+ host.innerHTML=Object.entries(APPEARANCE_CHOICES).map(([key,group])=>`
+  <div class="appearance-group">
+   <h3>${group.label}</h3>
+   <div class="appearance-options">
+    ${group.options.map(([label,value])=>{
+      const selected=onboardingSession?.appearance?.[key]===value;
+      return `<button type="button" class="appearance-option ${selected?"selected":""}" data-appearance-choice data-key="${key}" data-value="${value}" aria-pressed="${selected}">
+       ${group.swatches?`<span class="appearance-swatch" style="--swatch:${value}"></span>`:""}${label}
+      </button>`;
+    }).join("")}
+   </div>
+  </div>`).join("");
+}
+function renderAvatarPreview(){
+ if(!onboardingSession)return;
+ const appearance=onboardingSession.appearance,preview=$("avatar-preview");
+ for(const [key,cssVar] of [["skinTone","--skin"],["hairColor","--hair"],["topColor","--top"],["bottomColor","--bottom"],["shoeColor","--shoe"]])preview.style.setProperty(cssVar,appearance[key]);
+ preview.dataset.hair=appearance.hairStyle;preview.dataset.top=appearance.topStyle;preview.dataset.bottom=appearance.bottomStyle;
+ $("avatar-gender-label").textContent=onboardingSession.user.gender==="female"?"FEMALE STUDENT":"MALE STUDENT";
+ const top=APPEARANCE_CHOICES.topStyle.options.find(x=>x[1]===appearance.topStyle)?.[0]||"Campus tee";
+ const bottom=APPEARANCE_CHOICES.bottomStyle.options.find(x=>x[1]===appearance.bottomStyle)?.[0]||"Trousers";
+ const hair=APPEARANCE_CHOICES.hairStyle.options.find(x=>x[1]===appearance.hairStyle)?.[0]||"Low cut";
+ $("avatar-outfit-name").textContent=top+" · "+bottom+" · "+hair;
+}
+function beginOnboarding(user,playerState){
+ onboardingSession={user,playerState,appearance:{...DEFAULT_APPEARANCE,...(playerState.appearance||{})},step:0,results:{},spinning:false};
+ playerState.onboardingComplete=false;playerState.appearance={...onboardingSession.appearance};savePlayer(playerState);
+ $("auth-screen").hidden=true;$("game-screen").hidden=true;$("onboarding-screen").hidden=false;
+ $("customization-stage").hidden=false;$("fate-stage").hidden=true;$("onboarding-error").textContent="";
+ renderAppearanceControls();renderAvatarPreview();
+}
+function secureRandomIndex(length){
+ if(window.crypto?.getRandomValues){const n=new Uint32Array(1);window.crypto.getRandomValues(n);return n[0]%length;}
+ return Math.floor(Math.random()*length);
+}
+function renderFateStage(){
+ if(!onboardingSession)return;
+ const step=FATE_STEPS[onboardingSession.step],result=onboardingSession.results[step.key];
+ $("fate-step-eyebrow").textContent=`SPIN ${onboardingSession.step+1} OF 3`;
+ $("fate-step-title").textContent=step.title;
+ $("fate-step-description").textContent=step.description;
+ $("fate-wheel-icon").textContent=step.icon;
+ $("fate-wheel-value").textContent=result||"Ready?";
+ $("fate-wheel-subtitle").textContent=result?"Your fate has been selected":"The wheel is waiting for you";
+ $("fate-spin-status").textContent=result?"Result locked in. Continue when you're ready.":"Your result will be locked after the spin.";
+ $("fate-spin-button").hidden=Boolean(result);
+ $("fate-spin-button").disabled=false;
+ $("fate-spin-button").textContent=onboardingSession.step===0?"🎡 Spin for my course":onboardingSession.step===1?"🎡 Spin for my level":"🎡 Spin for my background";
+ $("fate-next-button").hidden=!result;
+ $("fate-next-button").textContent=onboardingSession.step===2?"Complete my student story →":"Continue to next spin →";
+ $("fate-result-summary").hidden=true;
+ for(let i=1;i<=3;i++){
+  const node=$("fate-progress-"+i);
+  node.classList.toggle("active",i===onboardingSession.step+1);
+  node.classList.toggle("done",i<onboardingSession.step+1);
+ }
+}
+async function spinFate(){
+ if(!onboardingSession||onboardingSession.spinning)return;
+ const step=FATE_STEPS[onboardingSession.step];
+ if(onboardingSession.results[step.key])return;
+ onboardingSession.spinning=true;
+ const spinButton=$("fate-spin-button"),wheel=$("fate-wheel"),value=$("fate-wheel-value");
+ spinButton.disabled=true;wheel.classList.add("spinning");value.classList.add("rolling");
+ $("fate-spin-status").textContent="Spinning… fate is being decided.";
+ const winner=step.options[secureRandomIndex(step.options.length)];
+ const ticker=window.setInterval(()=>{value.textContent=step.options[secureRandomIndex(step.options.length)];},70);
+ await new Promise(resolve=>window.setTimeout(resolve,2400));
+ window.clearInterval(ticker);wheel.classList.remove("spinning");value.classList.remove("rolling");
+ onboardingSession.results[step.key]=winner;onboardingSession.spinning=false;
+ value.textContent=winner;$("fate-wheel-subtitle").textContent="Selected for your student profile";
+ $("fate-spin-status").textContent="Locked in. Your result has been decided.";
+ spinButton.hidden=true;$("fate-next-button").hidden=false;
+ if(onboardingSession.step===2){
+  for(let i=1;i<=3;i++)$("fate-progress-"+i).classList.add("done");
+  $("fate-result-summary").hidden=false;
+  $("fate-result-summary").innerHTML=[
+   ["COURSE",onboardingSession.results.course],
+   ["LEVEL",onboardingSession.results.level],
+   ["BACKGROUND",onboardingSession.results.background]
+  ].map(([label,text])=>`<div class="fate-result-item"><small>${label}</small><b>${text}</b></div>`).join("");
+  $("fate-next-button").textContent="Start my Baze Life →";
+ }
+}
+async function completeOnboarding(){
+ if(!onboardingSession)return;
+ const {user,playerState,appearance,results}=onboardingSession;
+ if(!results.course||!results.level||!results.background)return;
+ const background=results.background==="Nepo Baby"?"nepo":results.background==="Amnesty Student"?"amnesty":"middle";
+ const initialCash=background==="nepo"?500000:100000;
+ const nextAllowanceDay=background==="amnesty"?(Number(playerState.day)||1)+90:null;
+ const setup={
+  onboardingComplete:true,appearance:{...appearance},course:results.course,level:results.level,
+  studentBackground:background,cash:initialCash,nextAmnestyAllowanceDay:nextAllowanceDay
+ };
+ $("fate-next-button").disabled=true;$("onboarding-error").textContent="Saving your student profile…";
+ try{
+  if(onlineProfile?.id){
+   await saveOnlineGameSetup(setup);
+   onlineProfile.gameSetup=setup;onlineProfile.onboardingRequired=false;
+  }
+  Object.assign(playerState,setup);savePlayer(playerState);
+  onboardingSession=null;$("onboarding-screen").hidden=true;
+  startGame(user,playerState);
+  setActivity("Your fate has been decided",`${results.level} · ${results.course} · ${results.background}. Your student life starts now.`);
+  toast(background==="amnesty"?"Welcome! Your ₦300,000 school allowance arrives every 90 in-game days.":`Welcome to Baze Life — you start with ${money(initialCash)}.`);
+ }catch(error){
+  $("onboarding-error").textContent=error.message||"Your student profile could not be saved. Please try again.";
+  $("fate-next-button").disabled=false;
+ }
+}
+function bindOnboarding(){
+ $("onboarding-screen").addEventListener("click",event=>{
+  const choice=event.target.closest("[data-appearance-choice]");
+  if(choice&&onboardingSession){
+   const key=choice.dataset.key,value=choice.dataset.value;
+   if(!APPEARANCE_CHOICES[key]?.options.some(option=>option[1]===value))return;
+   onboardingSession.appearance[key]=value;
+   onboardingSession.playerState.appearance={...onboardingSession.appearance};
+   renderAppearanceControls();renderAvatarPreview();return;
+  }
+ });
+ $("customize-continue").addEventListener("click",()=>{
+  if(!onboardingSession)return;
+  onboardingSession.playerState.appearance={...onboardingSession.appearance};
+  $("customization-stage").hidden=true;$("fate-stage").hidden=false;
+  onboardingSession.step=0;renderFateStage();
+ });
+ $("fate-spin-button").addEventListener("click",spinFate);
+ $("fate-next-button").addEventListener("click",()=>{
+  if(!onboardingSession)return;
+  if(onboardingSession.step<2){onboardingSession.step++;renderFateStage();}
+  else completeOnboarding();
+ });
+}
+bindOnboarding();
+
 // After Supabase processes a confirmation link, show the login form rather than
 // automatically starting the game. The student must sign in with their password.
 if (backendReady.enabled) {
@@ -35,40 +210,63 @@ if (backendReady.enabled) {
 }
 $("login-tab").addEventListener("click",()=>switchAuth("login"));$("signup-tab").addEventListener("click",()=>switchAuth("signup"));
 
-async function handleSignup(event){event.preventDefault();const name=$("signup-name").value.trim(),username=$("signup-username").value.trim(),password=$("signup-password").value;const gender=document.querySelector('input[name="gender"]:checked')?.value||"male";
+async function handleSignup(event){
+ event.preventDefault();
+ const name=$("signup-name").value.trim(),username=$("signup-username").value.trim(),password=$("signup-password").value;
+ const gender=document.querySelector('input[name="gender"]:checked')?.value||"male";
  if(username.length<3||!(/^[A-Za-z0-9_]+$/).test(username)){authMessage("Use at least 3 letters, numbers or underscores for the username.");return;}
- if(password.length<6 && multiplayerEnabled()){authMessage("Password must be at least 6 characters for online accounts.");return;}
+ if(password.length<6&&multiplayerEnabled()){authMessage("Password must be at least 6 characters for online accounts.");return;}
  if(password.length<4){authMessage("Password must be at least 4 characters for local accounts.");return;}
  const email=$("signup-email").value.trim();
  if(multiplayerEnabled()){
-   if(!email){authMessage("Enter an email address to create an online student account.");return;}
-   try{
-     const result=await registerOnlineStudent({email,password,name,username,gender});
-     if(!result.session){authMessage("Check your email to confirm your account, then log in with your email and password.",false);return;}
-     const profile=result.profile||{};
-     const user={id:result.user.id,email,name:profile.display_name||name,username:profile.username||username,gender:profile.gender||gender};onlineProfile=user;state=createNewState(user);savePlayer(state);startGame(user,state);return;
-   }catch(error){authMessage(error.message||"Online sign-up failed.");return;}
+  if(!email){authMessage("Enter an email address to create an online student account.");return;}
+  try{
+   const result=await registerOnlineStudent({email,password,name,username,gender});
+   if(!result.session){authMessage("Check your email to confirm your account, then log in with your email and password.",false);return;}
+   const profile=result.profile||{};
+   const user={id:result.user.id,email,name:profile.display_name||name,username:profile.username||username,gender:profile.gender||gender,onboardingRequired:true};
+   onlineProfile=user;state=createNewState(user);savePlayer(state);beginOnboarding(user,state);return;
+  }catch(error){authMessage(error.message||"Online sign-up failed.");return;}
  }
  if(findUser(username)){authMessage("That username is already taken.");return;}
- const user={name,username,gender,passwordHash:await passwordHash(password),createdAt:Date.now()};addUser(user);
- state=createNewState(user);savePlayer(state);startGame(user,state);}
-async function handleLogin(event){event.preventDefault();const username=$("login-username").value.trim(),password=$("login-password").value;
- if(multiplayerEnabled() && username.includes("@")){
-   try{const user=await loginOnlineStudent(username,password);onlineProfile=user;state=createNewState(user);startGame(user,state);return;}
-   catch(error){authMessage(error.message||"Online login failed.");return;}
+ const user={name,username,gender,passwordHash:await passwordHash(password),createdAt:Date.now()};
+ addUser(user);state=createNewState(user);savePlayer(state);beginOnboarding(user,state);
+}
+async function handleLogin(event){
+ event.preventDefault();
+ const username=$("login-username").value.trim(),password=$("login-password").value;
+ if(multiplayerEnabled()&&username.includes("@")){
+  try{
+   const user=await loginOnlineStudent(username,password);onlineProfile=user;
+   const saved=loadPlayer(user.username),base=createNewState(user);
+   if(user.gameSetup)Object.assign(base,user.gameSetup);
+   state=saved?{...base,...saved,username:user.username,name:user.name,gender:user.gender}:{...base};
+   if(!user.onboardingRequired&&!user.gameSetup&&!saved)state.onboardingComplete=true;
+   if(state.onboardingComplete){startGame(user,state);}
+   else{beginOnboarding(user,state);}
+   return;
+  }catch(error){authMessage(error.message||"Online login failed.");return;}
  }
- const user=findUser(username);if(!user){authMessage(multiplayerEnabled()?"For online accounts, enter your email address. For local accounts, enter your username.":"We couldn't find that username.");return;}if(user.passwordHash!==await passwordHash(password)){authMessage("Incorrect password.");return;}onlineProfile=null;const saved=loadPlayer(user.username);state=saved?{...createNewState(user),...saved,username:user.username,name:user.name,gender:user.gender}:{...createNewState(user)};startGame(user,state);}
+ const user=findUser(username);
+ if(!user){authMessage(multiplayerEnabled()?"For online accounts, enter your email address. For local accounts, enter your username.":"We couldn't find that username.");return;}
+ if(user.passwordHash!==await passwordHash(password)){authMessage("Incorrect password.");return;}
+ onlineProfile=null;
+ const saved=loadPlayer(user.username);
+ state=saved?{...createNewState(user),...saved,username:user.username,name:user.name,gender:user.gender,onboardingComplete:saved.onboardingComplete!==false}:{...createNewState(user),onboardingComplete:true};
+ if(state.onboardingComplete)startGame(user,state);else beginOnboarding(user,state);
+}
 $("signup-form").addEventListener("submit",handleSignup);$("login-form").addEventListener("submit",handleLogin);
 
 function startGame(user,playerState){
  state=playerState;
+ $("onboarding-screen").hidden=true;
  if(onlineProfile?.id){try{bazetalkUnread=JSON.parse(localStorage.getItem("bazetalk-unread:"+onlineProfile.id)||"{}")||{};bazetalkLastRead=JSON.parse(localStorage.getItem("bazetalk-lastread:"+onlineProfile.id)||"{}")||{};}catch{bazetalkUnread={};bazetalkLastRead={};}}else{bazetalkUnread={};bazetalkLastRead={};}
  updateBazeTalkBadge();
  $("auth-screen").hidden=true;$("game-screen").hidden=false;
  $("profile-name").textContent=user.name;$("profile-avatar").textContent=user.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓";$("phone-student-name").textContent=user.name.split(" ")[0];
  const current=LOCATIONS.find(p=>p.name===state.location);if(!current)state.location=getHostelForGender(user.gender)==="female-hostel"?"Female Hostel":"Male Hostel";
  if(!world){world=new World3D($("world-canvas"),$("map-marker-layer"),place=>enterLocation(place),()=>openBedOptions(),action=>openFixtureOptions(action));}
- else world.renderInterior(current||LOCATIONS.find(p=>p.name===state.location),state.gender);
+ else world.renderInterior(current||LOCATIONS.find(p=>p.name===state.location),state.gender,state.appearance);
  enterLocation(LOCATIONS.find(p=>p.name===state.location)||LOCATIONS.find(p=>p.id===getHostelForGender(user.gender)),true);
  renderActions();updateHUD();phone?.close();if(!phone)phone=bindPhone({onApp:handlePhoneApp});
  if(tickTimer)clearInterval(tickTimer);tickTimer=setInterval(gameTick,5000);
@@ -86,7 +284,7 @@ function sceneDescription(place){const desc={hostel:"Your room — rest and take
 function enterLocation(place,silent=false){if(!place)return;if(state.location!==place.name){if(state.energy<3){toast("You're too tired to travel. Rest first.");return;}state.energy=Math.max(0,state.energy-3);advanceTime(5);}
  if(place.type==="hostel"&&place.gender&&place.gender!==state.gender){toast("This hostel is for its residents. Visit your own hostel instead.");return;}
  if(mapWasOpen){restoreWorldViewport();$("map-screen").hidden=true;mapWasOpen=false;}
- state.location=place.name;if(onlineProfile?.id)updateOnlineLocation(onlineProfile,place.name).then(()=>publishPlayerPosition(onlineProfile,place.name,world?.player?.position?{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}:null)).catch(error=>console.warn("Could not update online location.",error));world.renderInterior(place,state.gender);world.localUserId=onlineProfile?.id||null;refreshRemotePlayers();$("map-marker-layer").hidden=true;$("map-controls").hidden=true;$("map-back-button").hidden=true;$("mobile-movement").hidden=true;updateSceneHeading(place);renderActions();updateHUD();if(!silent)setActivity("You entered "+place.name,sceneDescription(place));savePlayer(state);}
+ state.location=place.name;if(onlineProfile?.id)updateOnlineLocation(onlineProfile,place.name).then(()=>publishPlayerPosition(onlineProfile,place.name,world?.player?.position?{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}:null)).catch(error=>console.warn("Could not update online location.",error));world.renderInterior(place,state.gender,state.appearance);world.localUserId=onlineProfile?.id||null;refreshRemotePlayers();$("map-marker-layer").hidden=true;$("map-controls").hidden=true;$("map-back-button").hidden=true;$("mobile-movement").hidden=true;updateSceneHeading(place);renderActions();updateHUD();if(!silent)setActivity("You entered "+place.name,sceneDescription(place));savePlayer(state);}
 function openMap(){
  if(!world)return;
  mapWasOpen=true;
@@ -117,7 +315,7 @@ function closeMap(){
  restoreWorldViewport();
  $("map-screen").hidden=true;
  const loc=LOCATIONS.find(p=>p.name===state.location)||LOCATIONS.find(p=>p.id===getHostelForGender(state.gender));
- world.renderInterior(loc,state.gender);
+ world.renderInterior(loc,state.gender,state.appearance);
  $("mobile-movement").hidden=true;
  updateSceneHeading(loc);
  mapWasOpen=false;
@@ -133,7 +331,18 @@ $("map-zoom-out").addEventListener("click",()=>world.zoom(9));
 $("map-reset-view").addEventListener("click",()=>world.resetMapCamera());
 
 function renderActions(){const place=LOCATIONS.find(p=>p.name===state.location);const actions=[];if(place.type==="hostel"){actions.push(["😴 Sleep","sleep"],["🛌 Rest","rest"]);}if(place.type==="classroom"||place.type==="library"){actions.push(["📖 Study","study"],["🔎 Research","research"],["🫂 Talk to students","social"]);}if(place.type==="restaurant"){actions.push(["🍴 View menu","food"],["🫂 Socialise","social"]);}if(place.type==="sports"){actions.push(["⚽ Play / exercise","exercise"],["🎉 Have fun","fun"],["😴 Rest","rest"]);}if(place.type==="social"){actions.push(["🫂 Socialise","social"],["🎮 Have fun","fun"],["😴 Rest","rest"]);}if(place.type==="office"||place.type==="medical"||place.type==="gate"||place.type==="shop"){actions.push(["🫂 Talk to students","social"],["📋 Check information","admin"]);}actions.push(["📱 Open phone","phone"]);const host=$("action-buttons");host.innerHTML="";for(const [label,key] of actions){const b=document.createElement("button");b.textContent=label;b.addEventListener("click",()=>key==="phone"?phone.open():key==="food"?openFood():runActivity(key));host.appendChild(b);}}
-function advanceTime(minutes){let total=state.hour*60+state.minute+minutes;while(total>=1440){total-=1440;state.day++;state.rides=0;state.taxiBonusClaimed=false;}state.hour=Math.floor(total/60);state.minute=total%60;decayNeeds(state,minutes);}
+function advanceTime(minutes){
+ let total=state.hour*60+state.minute+minutes;
+ while(total>=1440){
+  total-=1440;state.day++;state.rides=0;state.taxiBonusClaimed=false;
+  if(state.studentBackground==="amnesty"&&state.nextAmnestyAllowanceDay&&state.day>=state.nextAmnestyAllowanceDay){
+   state.cash=(Number(state.cash)||0)+300000;
+   state.nextAmnestyAllowanceDay+=90;
+   toast("Amnesty allowance received: ₦300,000 from Baze University.");
+  }
+ }
+ state.hour=Math.floor(total/60);state.minute=total%60;decayNeeds(state,minutes);
+}
 function gameTick(){if(!state||$("game-screen").hidden)return;advanceTime(1);updateHUD();savePlayer(state);}
 function openBedOptions(){
  if(LOCATIONS.find(p=>p.name===state.location)?.type!=="hostel")return;
@@ -448,8 +657,15 @@ async function handleIncomingDirectMessage(message){
    if(conversationOpen&&directChatTarget)await refreshBazeTalkConversation(directChatTarget,true);
  }
 }
-function openProfile(){openModal("Student profile",`<div class="modal-row"><div><b>${state.name}</b><small>@${state.username} · ${state.gender} student</small></div><strong>${state.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓"}</strong></div><div class="modal-row"><div><b>Academic progress</b><small>${state.studyPoints} study points</small></div><strong>Level ${1+Math.floor(state.studyPoints/10)}</strong></div><div class="modal-row"><div><b>Reputation</b><small>Baze points</small></div><strong>${state.reputation}</strong></div><div class="modal-row"><div><b>Home</b><small>Your assigned accommodation</small></div><strong>${state.gender==="female"?"Female":"Male"} Hostel</strong></div>`);}
-function openWallet(){openModal("Wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">Starting balance: ₦100,000. Earn money through ProTaxi, tutoring and freelancing.</p>`);}
+function openProfile(){
+ const backgroundLabel=state.studentBackground==="nepo"?"Nepo Baby":state.studentBackground==="amnesty"?"Amnesty Student":"Middle Class";
+ const allowance=state.studentBackground==="amnesty"?`<div class="modal-row"><div><b>School allowance</b><small>₦300,000 every 90 in-game days · Next payment: Day ${state.nextAmnestyAllowanceDay}</small></div><strong>₦300k</strong></div>`:"";
+ openModal("Student profile",`<div class="modal-row"><div><b>${state.name}</b><small>@${state.username} · ${state.gender} student</small></div><strong>${state.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓"}</strong></div><div class="modal-row"><div><b>Course</b><small>${state.course||"Not selected"}</small></div><strong>🎓</strong></div><div class="modal-row"><div><b>University level</b><small>${state.level||"Not selected"}</small></div><strong>${state.level||"—"}</strong></div><div class="modal-row"><div><b>Student background</b><small>${backgroundLabel}</small></div><strong>${money(state.cash)}</strong></div>${allowance}<div class="modal-row"><div><b>Academic progress</b><small>${state.studyPoints} study points</small></div><strong>Level ${1+Math.floor(state.studyPoints/10)}</strong></div><div class="modal-row"><div><b>Reputation</b><small>Baze points</small></div><strong>${state.reputation}</strong></div><div class="modal-row"><div><b>Home</b><small>Your assigned accommodation</small></div><strong>${state.gender==="female"?"Female":"Male"} Hostel</strong></div>`);
+}
+function openWallet(){
+ const note=state.studentBackground==="nepo"?"You began as a Nepo Baby with ₦500,000.":state.studentBackground==="amnesty"?"You began with ₦100,000. Baze University pays you ₦300,000 every 90 in-game days.":"You began as a Middle Class student with ₦100,000.";
+ openModal("Wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">${note} Earn extra money through ProTaxi, tutoring and freelancing.</p>`);
+}
 function handlePhoneApp(app){if(app==="bazetalk"){openBazeTalk();return;}phone.close();switch(app){case"map":openMap();break;case"food":openFood();break;case"jobs":openJobs();break;case"activities":openActivities();break;case"social":openSocial();break;case"profile":openProfile();break;case"wallet":openWallet();break;case"home":enterLocation(LOCATIONS.find(p=>p.id===getHostelForGender(state.gender)));break;case"save":savePlayer(state);toast("Game saved on this device.");break;}}
 
 $("phone-teaser-open").addEventListener("click",()=>phone?.open());
