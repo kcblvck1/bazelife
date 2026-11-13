@@ -436,6 +436,21 @@ function runActivity(action){
  finish();
 }
 
+function buildStudentTimetable(course){
+ const days=["Monday","Tuesday","Wednesday","Thursday","Friday"];
+ const venues=["Block A · Lecture Room 1","Block B · Academic Room 2","Block C · Seminar Room","Block D · Lecture Room 1","University Library"];
+ return days.map((day,index)=>({day,classes:[
+  {time:"9:00 AM – 11:00 AM",type:"Core lecture",title:course,venue:venues[index%venues.length]},
+  {time:"1:00 PM – 3:00 PM",type:index%2===0?"Tutorial":"Practical / discussion",title:course+" · "+(index%2===0?"Tutorial":"Applied session"),venue:venues[(index+2)%venues.length]}
+ ]}));
+}
+function renderStudentTimetable(){
+ const timetable=buildStudentTimetable(state?.course||"Your programme");
+ return `<div class="timetable-intro"><span class="timetable-course">${escapeHTML(state?.course||"Course not selected")}</span><p>Illustrative BAZE LIFE class schedule · Monday to Friday</p></div>${timetable.map(day=>`<section class="timetable-day"><h3>${day.day}</h3>${day.classes.map(item=>`<article class="timetable-class"><div class="timetable-time">${item.time}</div><div class="timetable-class-copy"><b>${item.type}</b><span>${escapeHTML(item.title)}</span><small>📍 ${item.venue}</small></div></article>`).join("")}</section>`).join("")}<p class="timetable-note">This is a fictional in-game timetable for BAZE LIFE, not an official Baze University timetable. Your class schedule is for role-play and campus activities.</p>`;
+}
+function openStudentTimetable(){
+ openModal("My class timetable",renderStudentTimetable());
+}
 function openModal(title,html){$("modal-title").textContent=title;$("modal-content").innerHTML=html;$("modal-backdrop").hidden=false;}
 function closeModal(){$("modal-backdrop").hidden=true;}
 $("modal-close").addEventListener("click",closeModal);$("modal-backdrop").addEventListener("click",e=>{if(e.target===$("modal-backdrop"))closeModal();});
@@ -450,7 +465,7 @@ function openFood(){
 }
 function openJobs(){openModal("Jobs & side hustles",`<div class="modal-row"><div><b>🚕 ProTaxi driver</b><small>₦3,000 per ride · Five rides per day · Current: ${state.rides}/5</small></div><button id="job-taxi">Work</button></div><div class="modal-row"><div><b>📚 Tutoring</b><small>Earn ₦2,500 · Costs 15 energy</small></div><button id="job-tutor">Work</button></div><div class="modal-row"><div><b>💻 Freelancing</b><small>Earn ₦4,000 · Costs 20 energy</small></div><button id="job-freelance">Work</button></div>`);$("job-taxi").onclick=()=>runJob(doTaxiRide,30);$("job-tutor").onclick=()=>runJob(doTutoring,60);$("job-freelance").onclick=()=>runJob(doFreelance,90);}
 function runJob(fn,minutes){const result=fn(state);if(!result.ok){toast(result.message);return;}advanceTime(minutes);closeModal();toast(result.message);setActivity("Work completed",result.message);updateHUD();savePlayer(state);}
-function openActivities(){openModal("Activities",`<div class="modal-row"><div><b>📖 Study</b><small>Study in a class block or the Library</small></div><button data-action="study">Study</button></div><div class="modal-row"><div><b>🫂 Socialise</b><small>Improve social and fun</small></div><button data-action="social">Socialise</button></div><div class="modal-row"><div><b>🎉 Have fun</b><small>Improve fun; costs energy</small></div><button data-action="fun">Have fun</button></div><div class="modal-row"><div><b>😴 Rest</b><small>Recover 25 energy</small></div><button data-action="rest">Rest</button></div><div class="modal-row"><div><b>🏃 Exercise</b><small>Best done at Football Stadium</small></div><button data-action="exercise">Exercise</button></div>`);$("modal-content").querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>{closeModal();runActivity(b.dataset.action);});}
+function openActivities(){openModal("Activities",`<section class="activities-timetable"><div class="activities-timetable-heading"><div><b>📅 My class timetable</b><small>${escapeHTML(state?.course||"Course not selected")} · 5 study days</small></div><button type="button" id="open-full-timetable">View timetable</button></div><div class="activities-next-class"><b>Weekly schedule</b><span>2 sessions per weekday · 9 AM and 1 PM</span></div></section><div class="modal-row"><div><b>📖 Study</b><small>Study in a class block or the Library</small></div><button data-action="study">Study</button></div><div class="modal-row"><div><b>🫂 Socialise</b><small>Improve social and fun</small></div><button data-action="social">Socialise</button></div><div class="modal-row"><div><b>🎉 Have fun</b><small>Improve fun; costs energy</small></div><button data-action="fun">Have fun</button></div><div class="modal-row"><div><b>😴 Rest</b><small>Recover 25 energy</small></div><button data-action="rest">Rest</button></div><div class="modal-row"><div><b>🏃 Exercise</b><small>Best done at Football Stadium</small></div><button data-action="exercise">Exercise</button></div>`);$("open-full-timetable").onclick=openStudentTimetable;$("modal-content").querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>{closeModal();runActivity(b.dataset.action);});}
 function refreshRemotePlayers(){
  if(!world||world.mode!=="interior"||!state||!onlineProfile?.id)return;
  const players=Object.values(livePresence||{}).flat();
