@@ -88,11 +88,16 @@ function renderAvatarPreview(){
 }
 function beginOnboarding(user,playerState){
  $("onboarding-student-label").textContent=user.name+" · customise your student avatar";
- onboardingSession={user,playerState,appearance:{...DEFAULT_APPEARANCE,...(playerState.appearance||{})},step:0,results:{},spinning:false};
+ const savedResults={...(playerState.onboardingResults||{})};
+ const firstUnresolved=FATE_STEPS.findIndex(step=>!savedResults[step.key]);
+ const savedStep=firstUnresolved<0?2:firstUnresolved;
+ onboardingSession={user,playerState,appearance:{...DEFAULT_APPEARANCE,...(playerState.appearance||{})},step:savedStep,results:savedResults,spinning:false};
  playerState.onboardingComplete=false;playerState.appearance={...onboardingSession.appearance};savePlayer(playerState);
  $("auth-screen").hidden=true;$("game-screen").hidden=true;$("onboarding-screen").hidden=false;
- $("customization-stage").hidden=false;$("fate-stage").hidden=true;$("onboarding-error").textContent="";
+ const resumeFate=playerState.onboardingStage==="fate";
+ $("customization-stage").hidden=resumeFate;$("fate-stage").hidden=!resumeFate;$("onboarding-error").textContent="";
  renderAppearanceControls();renderAvatarPreview();
+ if(resumeFate)renderFateStage();
 }
 function secureRandomIndex(length){
  if(window.crypto?.getRandomValues){const n=new Uint32Array(1);window.crypto.getRandomValues(n);return n[0]%length;}
@@ -106,14 +111,14 @@ function fateOptions(step){
 function renderFateStage(){
  if(!onboardingSession)return;
  const step=FATE_STEPS[onboardingSession.step],result=onboardingSession.results[step.key];
+ $("fate-step-eyebrow").textContent=`SPIN ${onboardingSession.step+1} OF 3`;
+ $("fate-step-title").textContent=step.title;
+ $("fate-step-description").textContent=step.description;
  if(step.key==="level"){
   $("fate-step-description").textContent=fateOptions(step).some(value=>value.startsWith("Postgraduate"))
    ?"Your postgraduate year is selected randomly. The available options are postgraduate year 1 or 2."
    :"Your undergraduate level is selected randomly from 100 to 500.";
  }
- $("fate-step-eyebrow").textContent=`SPIN ${onboardingSession.step+1} OF 3`;
- $("fate-step-title").textContent=step.title;
- $("fate-step-description").textContent=step.description;
  $("fate-wheel-icon").textContent=step.icon;
  $("fate-wheel-value").textContent=result||"Ready?";
  $("fate-wheel-subtitle").textContent=result?"Your fate has been selected":"The wheel is waiting for you";
@@ -123,7 +128,14 @@ function renderFateStage(){
  $("fate-spin-button").textContent=onboardingSession.step===0?"🎡 Spin for my course":onboardingSession.step===1?"🎡 Spin for my level":"🎡 Spin for my background";
  $("fate-next-button").hidden=!result;
  $("fate-next-button").textContent=onboardingSession.step===2?"Complete my student story →":"Continue to next spin →";
- $("fate-result-summary").hidden=true;
+ $("fate-result-summary").hidden=!(onboardingSession.step===2&&result);
+ if(onboardingSession.step===2&&result){
+  $("fate-result-summary").innerHTML=[
+   ["COURSE",onboardingSession.results.course],
+   ["LEVEL",onboardingSession.results.level],
+   ["BACKGROUND",onboardingSession.results.background]
+  ].map(([label,text])=>`<div class="fate-result-item"><small>${label}</small><b>${text}</b></div>`).join("");
+ }
  for(let i=1;i<=3;i++){
   const node=$("fate-progress-"+i);
   node.classList.toggle("active",i===onboardingSession.step+1);
@@ -144,6 +156,8 @@ async function spinFate(){
  await new Promise(resolve=>window.setTimeout(resolve,2400));
  window.clearInterval(ticker);wheel.classList.remove("spinning");value.classList.remove("rolling");
  onboardingSession.results[step.key]=winner;onboardingSession.spinning=false;
+ onboardingSession.playerState.onboardingResults={...onboardingSession.results};
+ savePlayer(onboardingSession.playerState);
  value.textContent=winner;$("fate-wheel-subtitle").textContent="Selected for your student profile";
  $("fate-spin-status").textContent="Locked in. Your result has been decided.";
  spinButton.hidden=true;$("fate-next-button").hidden=false;
@@ -175,7 +189,8 @@ async function completeOnboarding(){
    await saveOnlineGameSetup(setup);
    onlineProfile.gameSetup=setup;onlineProfile.appearance={...appearance};onlineProfile.onboardingRequired=false;
   }
-  Object.assign(playerState,setup);savePlayer(playerState);
+  Object.assign(playerState,setup);
+  delete playerState.onboardingResults;delete playerState.onboardingStage;savePlayer(playerState);
   onboardingSession=null;$("onboarding-screen").hidden=true;
   startGame(user,playerState);
   setActivity("Your fate has been decided",`${results.level} · ${results.course} · ${results.background}. Your student life starts now.`);
@@ -193,14 +208,17 @@ function bindOnboarding(){
    if(!APPEARANCE_CHOICES[key]?.options.some(option=>option[1]===value))return;
    onboardingSession.appearance[key]=value;
    onboardingSession.playerState.appearance={...onboardingSession.appearance};
+   savePlayer(onboardingSession.playerState);
    renderAppearanceControls();renderAvatarPreview();return;
   }
  });
  $("customize-continue").addEventListener("click",()=>{
   if(!onboardingSession)return;
   onboardingSession.playerState.appearance={...onboardingSession.appearance};
+  onboardingSession.playerState.onboardingStage="fate";
+  savePlayer(onboardingSession.playerState);
   $("customization-stage").hidden=true;$("fate-stage").hidden=false;
-  onboardingSession.step=0;renderFateStage();
+  renderFateStage();
  });
  $("fate-spin-button").addEventListener("click",spinFate);
  $("fate-next-button").addEventListener("click",()=>{
