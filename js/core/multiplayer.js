@@ -425,3 +425,60 @@ export async function subscribeToCampus(profile, location, onPresence, onMessage
 
   return communityChannel;
 }
+
+
+export async function initializeStudentWallet(background) {
+  if (!client) throw new Error("Online wallet requires an online student account.");
+  const { data, error } = await client.rpc("initialize_student_wallet", { p_background: background || "middle" });
+  if (error) throw error;
+  return data;
+}
+
+export async function loadStudentWallet() {
+  if (!client) throw new Error("Online wallet requires an online student account.");
+  const { data, error } = await client.from("student_wallets")
+    .select("balance,background,game_day,taxi_rides,taxi_bonus_claimed,next_allowance_day")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function transferStudentCash(recipientId, amount) {
+  if (!client || !recipientId) throw new Error("Choose a student to receive the money.");
+  const { data: { user }, error: authError } = await client.auth.getUser();
+  if (authError) throw authError;
+  if (!user?.id) throw new Error("Your online session has expired. Sign in again.");
+  const wholeAmount = Number(amount);
+  if (!Number.isSafeInteger(wholeAmount) || wholeAmount < 1) throw new Error("Enter a valid whole-number amount.");
+  const { data, error } = await client.rpc("transfer_student_cash", {
+    p_recipient_id: recipientId,
+    p_amount: wholeAmount
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function applyOnlineWalletAction(action, gameDay, item = null, restaurant = null) {
+  if (!client) throw new Error("Online wallet requires an online student account.");
+  const { data, error } = await client.rpc("apply_student_wallet_action", {
+    p_action: action,
+    p_game_day: gameDay || 1,
+    p_item: item,
+    p_restaurant: restaurant
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function loadWalletTransactions(peerId, limit = 30) {
+  if (!client || !peerId) return [];
+  const { data: { user }, error: authError } = await client.auth.getUser();
+  if (authError) throw authError;
+  if (!user?.id) throw new Error("Your online session has expired. Sign in again.");
+  const { data, error } = await client.from("student_wallet_transactions")
+    .select("id,sender_id,recipient_id,amount,kind,description,created_at")
+    .or(`and(sender_id.eq.${user.id},recipient_id.eq.${peerId}),and(sender_id.eq.${peerId},recipient_id.eq.${user.id})`)
+    .order("created_at", { ascending: true }).limit(limit);
+  if (error) throw error;
+  return data || [];
+}
