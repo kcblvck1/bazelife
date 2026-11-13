@@ -2,6 +2,11 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase-config.js";
 
 let client = null;
 let communityChannel = null;
+let communityProfile = null;
+let communityLocation = "Campus";
+let communityStatus = "CLOSED";
+let lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
+let lastPresenceSentAt = 0;
 const configured = /^https:\/\/.+\.supabase\.co$/.test(SUPABASE_URL) &&
   SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes("YOUR_");
 
@@ -111,6 +116,11 @@ export async function logoutOnlineStudent() {
   if (communityChannel && client) {
     try { await client.removeChannel(communityChannel); } finally { communityChannel = null; }
   }
+  communityProfile = null;
+  communityLocation = "Campus";
+  communityStatus = "CLOSED";
+  lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
+  lastPresenceSentAt = 0;
   if (client) {
     const { error } = await client.auth.signOut();
     if (error) throw error;
@@ -136,8 +146,14 @@ export async function updateOnlineLocation(profile, location) {
   const seenAt = new Date().toISOString();
   const { error } = await client.from("profiles").update({ location, last_seen: seenAt }).eq("id", profile.id);
   if (error) throw error;
-  if (communityChannel) await communityChannel.track({ user_id: profile.id, username: profile.username,
-    display_name: profile.name, gender: profile.gender, location, online_at: seenAt });
+
+  // Keep the latest room name and re-track the complete presence payload.
+  // Tracking only profile fields here used to overwrite x/z/rotation until
+  // the next movement tick, leaving a newly-arrived player at the wrong spot.
+  communityLocation = location;
+  if (communityProfile?.id === profile.id && communityStatus === "SUBSCRIBED") {
+    await trackCommunityPresence();
+  }
 }
 
 export async function listOnlineProfiles(currentUserId) {
@@ -180,14 +196,41 @@ export async function sendDirectMessage(profile, recipientId, body) {
   if(error) throw error;
 }
 
-export async function publishPlayerPosition(profile, location, position) {
-  if(!client||!communityChannel||!profile?.id) return;
-  await communityChannel.track({
-    user_id:profile.id,username:profile.username,display_name:profile.name,
-    gender:profile.gender,location,
-    x:Number(position?.x||0),z:Number(position?.z||0),
-    rotation:Number(position?.rotation||0),online_at:new Date().toISOString()
+async function trackCommunityPresence(position = null) {
+  if (position) {
+    lastPresencePosition = {
+      x: Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
+      z: Number.isFinite(Number(position.z)) ? Number(position.z) : 0,
+      rotation: Number.isFinite(Number(position.rotation)) ? Number(position.rotation) : 0
+    };
+  }
+  if (!client || !communityChannel || communityStatus !== "SUBSCRIBED" || !communityProfile?.id) return false;
+
+  const result = await communityChannel.track({
+    user_id: communityProfile.id,
+    username: communityProfile.username,
+    display_name: communityProfile.name,
+    gender: communityProfile.gender,
+    location: communityLocation,
+    x: lastPresencePosition.x,
+    z: lastPresencePosition.z,
+    rotation: lastPresencePosition.rotation,
+    online_at: new Date().toISOString()
   });
+  if (result !== "ok") throw new Error(`Supabase presence update failed: ${result}.`);
+  lastPresenceSentAt = Date.now();
+  return true;
+}
+
+export async function publishPlayerPosition(profile, location, position) {
+  if (!client || !communityChannel || !profile?.id || communityStatus !== "SUBSCRIBED") return;
+  if (communityProfile?.id !== profile.id) return;
+
+  // Ignore movement updates that arrive too quickly; presence is a roster, not
+  // a 60fps movement stream. The renderer interpolates between these snapshots.
+  if (Date.now() - lastPresenceSentAt < 300) return;
+  communityLocation = location;
+  await trackCommunityPresence(position);
 }
 
 export async function loadRecentMessages(limit = 40) {
@@ -209,19 +252,64 @@ export async function sendCampusMessage(profile, body) {
   if (error) throw error;
 }
 
-export async function subscribeToCampus(profile, location, onPresence, onMessage, onDirectMessage=()=>{}) {
-  if (!client) return null;
+export async function subscribeToCampus(profile, location, onPresence, onMessage, onDirectMessage=()=>{}, onStatus=()=>{}) {
+  if (!client || !profile?.id) throw new Error("Online sign-in is required for campus presence.");
   if (communityChannel) await client.removeChannel(communityChannel);
-  communityChannel = client.channel("baze-life-campus", { config: { presence: { key: profile?.id || "community" } } });
+
+  communityProfile = profile;
+  communityLocation = location;
+  communityStatus = "CONNECTING";
+  lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
+  lastPresenceSentAt = 0;
+
+  communityChannel = client.channel("baze-life-campus", {
+    config: { presence: { key: profile.id } }
+  });
   communityChannel
-    .on("presence", { event: "sync" }, () => onPresence(communityChannel.presenceState()))
+    .on("presence", { event: "sync" }, () => {
+      try { onPresence(communityChannel.presenceState()); }
+      catch (error) { console.error("Could not render campus presence roster.", error); }
+    })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, payload => onMessage(payload.new))
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, payload => onDirectMessage(payload.new));
-  await new Promise(resolve => communityChannel.subscribe(async status => {
-    if (status === "SUBSCRIBED") {
-      if (profile?.id) await communityChannel.track({ user_id: profile.id, username: profile.username, display_name: profile.name, gender: profile.gender, location, x:0, z:0, rotation:0, online_at: new Date().toISOString() });
-      resolve();
-    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") resolve();
-  }));
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      communityStatus = "TIMED_OUT";
+      reject(new Error("Supabase Realtime did not connect within 15 seconds. Check the Realtime service and browser network."));
+    }, 15000);
+
+    communityChannel.subscribe(async status => {
+      onStatus(status);
+      if (status === "SUBSCRIBED") {
+        communityStatus = status;
+        if (settled) return;
+        try {
+          await trackCommunityPresence(lastPresencePosition);
+          // Do an immediate snapshot after tracking. Relying only on a later
+          // presence sync can leave the first roster empty until another join.
+          onPresence(communityChannel.presenceState());
+          settled = true;
+          clearTimeout(timeout);
+          resolve();
+        } catch (error) {
+          settled = true;
+          clearTimeout(timeout);
+          communityStatus = "ERROR";
+          reject(error);
+        }
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        communityStatus = status;
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        reject(new Error(`Supabase Realtime channel failed: ${status}. Check the Supabase Realtime settings and browser console.`));
+      }
+    });
+  });
+
   return communityChannel;
 }
