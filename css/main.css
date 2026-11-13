@@ -195,3 +195,25 @@ body,.game-screen{background:#34383d;color:#e4e7eb}
 .onboarding-error{min-height:18px;color:#ffb6b6;font-size:11px;text-align:center;margin:10px 0 0}
 @media(max-width:780px){.onboarding-header{flex-wrap:wrap}.onboarding-student{order:3;width:100%;text-align:left}.onboarding-phase{margin-left:auto}.customize-layout,.fate-layout{grid-template-columns:1fr}.avatar-preview-card{min-height:450px}.avatar-preview{min-height:310px}.appearance-controls{grid-template-columns:1fr 1fr}.fate-notes-card{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.fate-notes-card h3,.fate-notes-card>p{grid-column:span 2}.fate-notes-icon{grid-column:span 2}}
 @media(max-width:520px){.onboarding-main{width:calc(100% - 22px);padding:19px 0 28px}.onboarding-phase{font-size:7px}.onboarding-brand{font-size:14px}.appearance-panel{padding:15px}.appearance-controls{grid-template-columns:1fr;gap:14px}.onboarding-actions{align-items:flex-start;flex-direction:column}.onboarding-actions button{width:100%}.avatar-preview-caption{align-items:flex-start;flex-direction:column}.avatar-preview-caption small{text-align:left}.fate-wheel-card{padding:18px 13px}.fate-result-summary{grid-template-columns:1fr}.fate-notes-card{display:block}}
+
+/* Student class timetable */
+.activities-timetable{background:linear-gradient(135deg,#edf3f8,#f7f9fb);border:1px solid #dce6ef;border-radius:13px;padding:13px;margin:4px 0 14px}
+.activities-timetable-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.activities-timetable-heading b,.activities-timetable-heading small{display:block}
+.activities-timetable-heading b{font-size:13px}
+.activities-timetable-heading small{font-size:10px;color:var(--muted);margin-top:4px}
+.activities-timetable-heading button{background:#536f91;color:white;border-radius:8px;padding:8px 10px;font-size:10px;font-weight:800}
+.activities-next-class{display:flex;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #dce5ed;font-size:10px}
+.activities-next-class span{color:var(--muted)}
+.timetable-intro{background:#edf3f8;border-radius:12px;padding:12px;margin-bottom:12px}
+.timetable-course{font-size:13px;font-weight:800;color:#314d68}
+.timetable-intro p,.timetable-note{font-size:10px;line-height:1.5;color:var(--muted);margin:5px 0 0}
+.timetable-day{margin:12px 0}
+.timetable-day h3{font-size:12px;margin:0 0 7px;color:#536f91}
+.timetable-class{display:flex;gap:12px;padding:10px;border:1px solid #e5ebf0;border-radius:10px;margin:6px 0;background:#fff}
+.timetable-time{min-width:112px;font-size:10px;font-weight:800;color:#536f91;padding-top:2px}
+.timetable-class-copy b,.timetable-class-copy span,.timetable-class-copy small{display:block}
+.timetable-class-copy b{font-size:10px}
+.timetable-class-copy span{font-size:11px;margin-top:3px}
+.timetable-class-copy small{font-size:9px;color:var(--muted);margin-top:4px}
+.timetable-note{padding:10px;background:#f6f8fa;border-radius:9px}
