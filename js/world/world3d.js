@@ -498,10 +498,10 @@ export class World3D {
     const g=new THREE.Group(),shirt=mat(this.currentGender==="female"?0x9b6b91:0x527b9b),trousers=mat(0x34465b);
     // Lie head-to-toe down the bed's long axis, with the head on its pillow.
     const pillow=new THREE.Mesh(new THREE.BoxGeometry(.92,.15,.72),mat(0xf1eee6));pillow.position.set(0,.11,-1.82);g.add(pillow);
-    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.68,4,10),shirt);torso.rotation.x=Math.PI/2;torso.position.set(0,.19,-.55);g.add(torso);
+    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.68,4,10),shirt);torso.rotation.x=Math.PI/2;torso.position.set(0,.19,-.70);g.add(torso);
     const head=new THREE.Mesh(new THREE.SphereGeometry(.22,12,10),mat(0x9b684d));head.position.set(0,.23,-1.58);g.add(head);
     const hair=new THREE.Mesh(new THREE.SphereGeometry(.225,12,8,0,Math.PI*2,0,Math.PI*.58),mat(0x241e1b));hair.position.set(0,.28,-1.61);g.add(hair);
-    for(const side of [-1,1]){const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.5,3,7),shirt);arm.rotation.z=Math.PI/2;arm.position.set(side*.31,.12,-.52);g.add(arm);const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.72,4,8),trousers);leg.rotation.x=Math.PI/2;leg.position.set(side*.12,.12,.82);g.add(leg);}
+    for(const side of [-1,1]){const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.5,3,7),shirt);arm.rotation.z=Math.PI/2;arm.position.set(side*.31,.12,-.52);g.add(arm);const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.72,4,8),trousers);leg.rotation.x=Math.PI/2;leg.position.set(side*.12,.12,.45);g.add(leg);}
     const blanket=new THREE.Mesh(new THREE.BoxGeometry(1.48,.09,1.95),mat(action==="sleep"?0x718da7:0x9caaaf));blanket.position.set(0,.2,.28);g.add(blanket);
     const bed=this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45);g.position.set(bed.x,.48,bed.z);this.add(g);this.bedAvatar=g;
     const started=performance.now();const tick=()=>{if(this.bedAvatar!==g)return;const t=(performance.now()-started)/duration;g.position.y=.48+(action==="sleep"?Math.sin(t*Math.PI*8)*.012:0);if(t>=1){this.root.remove(g);this.bedAvatar=null;if(this.player){this.player.visible=true;this.player.position.set(bed.x,0,bed.z+2.95);this.updateThirdPersonCamera();}onDone();}else setTimeout(tick,80);};tick();
@@ -558,6 +558,7 @@ export class World3D {
     window.addEventListener("pointerup",e=>{
       if(this.mode!=="interior")return;
       this.dragLook=null;
+      if(this.pendingFixtureAction||this.fixtureAvatar||this.bedAvatar){down=null;return;}
       if(!down)return;
       const click=down;down=null;
       if(click.moved)return;

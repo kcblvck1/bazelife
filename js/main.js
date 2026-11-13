@@ -152,8 +152,10 @@ function openFixtureOptions(action){
 function runFixtureAction(action){
  const duration=action==="toilet"?3000:7000;
  const buttons=$("action-buttons");buttons.querySelectorAll("button").forEach(b=>b.disabled=true);
+ $("open-map-button").disabled=true;$("open-phone-button").disabled=true;
  world?.playFixtureAction(action,duration,()=>{
    buttons.querySelectorAll("button").forEach(b=>b.disabled=false);
+   $("open-map-button").disabled=false;$("open-phone-button").disabled=false;
    const result=performActivity(state,action);
    if(!result.ok){toast(result.message);return;}
    if(result.minutes)advanceTime(result.minutes);
@@ -168,7 +170,8 @@ function runActivity(action){
  const current=LOCATIONS.find(p=>p.name===state.location);
  if((action==="rest"||action==="sleep")&&current?.type==="hostel"){
    const buttons=$("action-buttons");buttons.querySelectorAll("button").forEach(b=>b.disabled=true);
-   world?.playBedAction(action,action==="sleep"?10000:5000,()=>{buttons.querySelectorAll("button").forEach(b=>b.disabled=false);finish();});
+   $("open-map-button").disabled=true;$("open-phone-button").disabled=true;
+   world?.playBedAction(action,action==="sleep"?10000:5000,()=>{buttons.querySelectorAll("button").forEach(b=>b.disabled=false);$("open-map-button").disabled=false;$("open-phone-button").disabled=false;finish();});
    setActivity(action==="sleep"?"Sleeping…":"Resting…", "Your character is lying down on the hostel bed.");return;
  }
  finish();
