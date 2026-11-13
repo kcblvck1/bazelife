@@ -82,6 +82,7 @@ function renderAvatarPreview(){
  $("avatar-outfit-name").textContent=top+" · "+bottom+" · "+hair;
 }
 function beginOnboarding(user,playerState){
+ $("onboarding-student-label").textContent=user.name+" · customise your student avatar";
  onboardingSession={user,playerState,appearance:{...DEFAULT_APPEARANCE,...(playerState.appearance||{})},step:0,results:{},spinning:false};
  playerState.onboardingComplete=false;playerState.appearance={...onboardingSession.appearance};savePlayer(playerState);
  $("auth-screen").hidden=true;$("game-screen").hidden=true;$("onboarding-screen").hidden=false;
@@ -241,6 +242,8 @@ async function handleLogin(event){
    const saved=loadPlayer(user.username),base=createNewState(user);
    if(user.gameSetup)Object.assign(base,user.gameSetup);
    state=saved?{...base,...saved,username:user.username,name:user.name,gender:user.gender}:{...base};
+   // Accounts created before the onboarding feature keep their existing game.
+   if(saved&&saved.onboardingComplete===undefined&&!user.onboardingRequired&&!user.gameSetup)state.onboardingComplete=true;
    if(!user.onboardingRequired&&!user.gameSetup&&!saved)state.onboardingComplete=true;
    if(state.onboardingComplete){startGame(user,state);}
    else{beginOnboarding(user,state);}
@@ -660,7 +663,7 @@ async function handleIncomingDirectMessage(message){
 function openProfile(){
  const backgroundLabel=state.studentBackground==="nepo"?"Nepo Baby":state.studentBackground==="amnesty"?"Amnesty Student":"Middle Class";
  const allowance=state.studentBackground==="amnesty"?`<div class="modal-row"><div><b>School allowance</b><small>₦300,000 every 90 in-game days · Next payment: Day ${state.nextAmnestyAllowanceDay}</small></div><strong>₦300k</strong></div>`:"";
- openModal("Student profile",`<div class="modal-row"><div><b>${state.name}</b><small>@${state.username} · ${state.gender} student</small></div><strong>${state.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓"}</strong></div><div class="modal-row"><div><b>Course</b><small>${state.course||"Not selected"}</small></div><strong>🎓</strong></div><div class="modal-row"><div><b>University level</b><small>${state.level||"Not selected"}</small></div><strong>${state.level||"—"}</strong></div><div class="modal-row"><div><b>Student background</b><small>${backgroundLabel}</small></div><strong>${money(state.cash)}</strong></div>${allowance}<div class="modal-row"><div><b>Academic progress</b><small>${state.studyPoints} study points</small></div><strong>Level ${1+Math.floor(state.studyPoints/10)}</strong></div><div class="modal-row"><div><b>Reputation</b><small>Baze points</small></div><strong>${state.reputation}</strong></div><div class="modal-row"><div><b>Home</b><small>Your assigned accommodation</small></div><strong>${state.gender==="female"?"Female":"Male"} Hostel</strong></div>`);
+ openModal("Student profile",`<div class="modal-row"><div><b>${state.name}</b><small>@${state.username} · ${state.gender} student</small></div><strong>${state.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓"}</strong></div><div class="modal-row"><div><b>Course</b><small>${state.course||"Not selected"}</small></div><strong>🎓</strong></div><div class="modal-row"><div><b>University level</b><small>${state.level||"Not selected"}</small></div><strong>${state.level||"—"}</strong></div><div class="modal-row"><div><b>Student background</b><small>${backgroundLabel}</small></div><strong>${money(state.cash)}</strong></div>${allowance}<div class="modal-row"><div><b>Academic progress</b><small>${state.studyPoints} study points</small></div><strong>Rank ${1+Math.floor(state.studyPoints/10)}</strong></div><div class="modal-row"><div><b>Reputation</b><small>Baze points</small></div><strong>${state.reputation}</strong></div><div class="modal-row"><div><b>Home</b><small>Your assigned accommodation</small></div><strong>${state.gender==="female"?"Female":"Male"} Hostel</strong></div>`);
 }
 function openWallet(){
  const note=state.studentBackground==="nepo"?"You began as a Nepo Baby with ₦500,000.":state.studentBackground==="amnesty"?"You began with ₦100,000. Baze University pays you ₦300,000 every 90 in-game days.":"You began as a Middle Class student with ₦100,000.";
