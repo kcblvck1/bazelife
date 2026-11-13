@@ -103,3 +103,95 @@ body,.game-screen{background:#34383d;color:#e4e7eb}
 .bazetalk-compose{display:flex;gap:8px;align-items:center;padding:10px;background:#fff;border-top:1px solid #e4ebf1}
 .bazetalk-compose button{width:38px;height:38px;padding:0;border-radius:50%;font-size:17px}
 @media(max-width:600px){.bazetalk-view{border-radius:18px}}
+
+/* New-student onboarding: avatar customizer and three fate spins. */
+.onboarding-screen{position:fixed;inset:0;z-index:100;background:radial-gradient(circle at 15% 0%,#334d67 0,#202b38 42%,#171f29 100%);color:#edf3f8;display:flex;flex-direction:column;overflow:auto}
+.onboarding-header{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px clamp(16px,4vw,52px);border-bottom:1px solid #ffffff20;background:#111c28b8}
+.onboarding-brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.5px;white-space:nowrap}
+.onboarding-brand b{color:#b8d2e9}
+.onboarding-student{font-size:12px;color:#dce7f1;text-align:center}
+.onboarding-phase{font-size:9px;font-weight:900;letter-spacing:1.4px;color:#a7bed2;white-space:nowrap}
+.onboarding-main{width:min(1160px,calc(100% - 34px));margin:0 auto;padding:28px 0 42px}
+.onboarding-intro{margin-bottom:22px;max-width:720px}
+.onboarding-intro .eyebrow{color:#9ebbd5}
+.onboarding-intro h1{font-family:Manrope,sans-serif;font-size:clamp(27px,4vw,42px);letter-spacing:-1.4px;margin:0 0 9px;color:#f7fafc}
+.onboarding-intro>p:last-child{font-size:13px;line-height:1.65;color:#b9c8d5;margin:0}
+.customize-layout{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.4fr);gap:18px;align-items:stretch}
+.avatar-preview-card,.appearance-panel,.fate-wheel-card,.fate-notes-card{background:#f3f6f9;color:#24374b;border:1px solid #ffffff24;border-radius:20px;box-shadow:0 18px 50px #09131f38}
+.avatar-preview-card{padding:17px;display:flex;flex-direction:column;min-height:530px}
+.avatar-preview-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:9px;font-weight:900;letter-spacing:1px;color:#526b83}
+.avatar-preview-heading small{font-size:8px;color:#8a9bab}
+.avatar-preview{--skin:#89583f;--hair:#211b18;--top:#4d7190;--bottom:#26394e;--shoe:#20252b;position:relative;overflow:hidden;flex:1;min-height:360px;margin:14px 0 10px;border-radius:16px;background:radial-gradient(ellipse at 50% 42%,#d4e2ef 0,#b5cadc 45%,#8fa9bf 100%);display:grid;place-items:center}
+.avatar-preview-glow{position:absolute;width:210px;height:210px;border-radius:50%;background:#ffffff55;filter:blur(18px);top:48px;left:50%;transform:translateX(-50%)}
+.avatar-floor{position:absolute;bottom:30px;width:180px;height:28px;border-radius:50%;background:#38516b30;filter:blur(8px)}
+.avatar-figure{position:relative;z-index:1;width:180px;height:325px;filter:drop-shadow(0 12px 8px #22384b30)}
+.avatar-head{position:absolute;left:62px;top:29px;width:56px;height:66px;border-radius:45% 45% 43% 43%;background:var(--skin);z-index:3}
+.avatar-hair{position:absolute;z-index:4;left:57px;top:17px;width:66px;height:33px;border-radius:55% 55% 25% 25%;background:var(--hair)}
+.avatar-neck{position:absolute;z-index:2;left:81px;top:86px;width:18px;height:22px;background:var(--skin)}
+.avatar-body{position:absolute;z-index:2;left:48px;top:101px;width:84px;height:111px;border-radius:24px 24px 15px 15px;background:var(--top);box-shadow:inset 0 8px 0 #ffffff18}
+.avatar-arm{position:absolute;z-index:1;top:109px;width:24px;height:100px;border-radius:16px;background:var(--top)}
+.avatar-arm-left{left:31px;transform:rotate(5deg)}
+.avatar-arm-right{right:31px;transform:rotate(-5deg)}
+.avatar-leg{position:absolute;z-index:1;top:205px;width:34px;height:91px;border-radius:12px 12px 15px 15px;background:var(--bottom)}
+.avatar-leg-left{left:55px}.avatar-leg-right{right:55px}
+.avatar-shoe{position:absolute;z-index:2;top:286px;width:43px;height:19px;border-radius:9px 14px 6px 6px;background:var(--shoe)}
+.avatar-shoe-left{left:45px}.avatar-shoe-right{right:45px}
+.avatar-preview[data-hair=afro] .avatar-hair{left:50px;top:8px;width:80px;height:53px;border-radius:50%}
+.avatar-preview[data-hair=braids] .avatar-hair,.avatar-preview[data-hair=locs] .avatar-hair{height:35px;border-radius:50% 50% 35% 35%}
+.avatar-preview[data-hair=braids] .avatar-hair:after,.avatar-preview[data-hair=locs] .avatar-hair:after{content:"";position:absolute;left:8px;right:8px;top:22px;height:58px;border-left:7px solid var(--hair);border-right:7px solid var(--hair);border-radius:0 0 12px 12px}
+.avatar-preview[data-top=hoodie] .avatar-body{border-radius:24px 24px 12px 12px;box-shadow:inset 0 10px 0 #ffffff20,inset 0 -13px 0 #00000012}
+.avatar-preview[data-top=polo] .avatar-body:before{content:"";position:absolute;top:0;left:33px;width:18px;height:15px;background:#edf0e9;clip-path:polygon(0 0,100% 0,65% 100%,35% 100%)}
+.avatar-preview[data-top=buttonup] .avatar-body:after{content:"";position:absolute;top:8px;left:41px;height:82px;border-left:2px solid #ffffff55}
+.avatar-preview[data-bottom=skirt] .avatar-leg{top:217px}
+.avatar-preview[data-bottom=skirt] .avatar-body:after{content:"";position:absolute;left:-2px;right:-2px;bottom:-21px;height:36px;background:var(--bottom);clip-path:polygon(18% 0,82% 0,100% 100%,0 100%);border-radius:0 0 7px 7px}
+.avatar-preview-caption{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;border-top:1px solid #dce5ed}
+.avatar-preview-caption b{font-size:12px}.avatar-preview-caption small{font-size:9px;color:#8797a6;text-align:right}
+.appearance-panel{padding:20px;display:flex;flex-direction:column}
+.appearance-panel-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid #dfe7ee}
+.appearance-panel-heading h2{font:800 17px Manrope,sans-serif;margin:0;color:#24374b}
+.appearance-panel-heading span{font-size:8px;letter-spacing:1px;font-weight:900;color:#8597a8}
+.appearance-controls{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;padding:18px 0;flex:1}
+.appearance-group{min-width:0}
+.appearance-group>h3{margin:0 0 9px;font-size:10px;font-weight:900;letter-spacing:.55px;color:#52677c}
+.appearance-options{display:flex;flex-wrap:wrap;gap:7px}
+.appearance-option{min-height:35px;padding:7px 10px;border:1px solid #d6e0e8;border-radius:9px;background:#fff;color:#455d73;font-size:10px;font-weight:800;display:flex;align-items:center;gap:7px}
+.appearance-option.selected{border-color:#476b91;background:#e5eef6;color:#243b55;box-shadow:inset 0 0 0 1px #476b91}
+.appearance-swatch{width:17px;height:17px;border-radius:50%;background:var(--swatch);border:2px solid #ffffff;box-shadow:0 0 0 1px #aab8c5;flex:none}
+.onboarding-actions{display:flex;justify-content:space-between;align-items:center;gap:15px;border-top:1px solid #dfe7ee;padding-top:15px}
+.onboarding-actions>span{font-size:9px;color:#8796a5;line-height:1.5}
+.onboarding-actions button{padding:12px 16px;white-space:nowrap}
+.fate-intro{margin-bottom:20px}
+.fate-progress{display:flex;align-items:center;gap:12px;margin:0 auto 20px;width:min(560px,100%)}
+.fate-progress>i{height:2px;flex:1;background:#607588}
+.fate-progress-step{display:flex;align-items:center;gap:7px;color:#7d94a8;font-size:12px;font-weight:900}
+.fate-progress-step small{font-size:8px;letter-spacing:.8px}
+.fate-progress-step.active,.fate-progress-step.done{color:#d7e9f8}
+.fate-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(230px,.8fr);gap:18px}
+.fate-wheel-card{padding:25px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.fate-wheel-card .eyebrow{color:#69849e;margin-bottom:8px}
+.fate-wheel-card h2{font:800 22px Manrope,sans-serif;color:#24374b;margin:0 0 8px}
+.fate-description{font-size:11px;line-height:1.55;color:#768a9d;max-width:510px;margin:0}
+.fate-wheel{position:relative;width:min(100%,480px);min-height:190px;margin:20px 0 12px;padding:25px 22px 20px;border-radius:20px;border:2px solid #cbd9e5;background:radial-gradient(circle at 50% 15%,#ffffff,#e6eef5 72%,#d6e3ee);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 2px 10px #ffffff,0 8px 25px #263b5010}
+.fate-wheel-pointer{position:absolute;top:-13px;left:50%;transform:translateX(-50%);color:#c48e40;font-size:22px;text-shadow:0 2px 3px #0002}
+.fate-wheel-icon{font-size:27px;margin-bottom:8px}
+.fate-wheel-value{font:900 clamp(17px,2.5vw,25px) Manrope,sans-serif;line-height:1.25;color:#253d55;max-width:100%;overflow-wrap:anywhere}
+.fate-wheel-value.rolling{color:#5e7892;filter:blur(.2px)}
+.fate-wheel small{display:block;color:#8294a4;font-size:9px;margin-top:7px}
+.fate-wheel.spinning .fate-wheel-icon{animation:fateWheelPulse .36s ease-in-out infinite alternate}
+@keyframes fateWheelPulse{from{transform:translateY(-3px) rotate(-9deg) scale(.92)}to{transform:translateY(3px) rotate(9deg) scale(1.08)}}
+.fate-spin-status{font-size:10px;color:#8193a3;margin:0 0 13px}
+.fate-spin-button,.fate-next-button{width:min(100%,360px);padding:13px 17px}
+.fate-spin-button:disabled{opacity:.55;cursor:wait}
+.fate-next-button{margin-top:8px}
+.fate-notes-card{padding:22px;background:#26394d;color:#e5edf4;border-color:#526981}
+.fate-notes-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#3a526a;color:#d9e9f7;font-size:22px}
+.fate-notes-card h3{font:800 17px Manrope,sans-serif;margin:15px 0 8px;line-height:1.3}
+.fate-notes-card>p{font-size:11px;line-height:1.6;color:#bdccda;margin:0 0 20px}
+.fate-rule{padding:11px 0;border-top:1px solid #ffffff20;display:flex;flex-direction:column;gap:4px}
+.fate-rule b{font-size:9px;letter-spacing:.8px;color:#dceaf6}.fate-rule span{font-size:10px;color:#b5c6d5}
+.fate-result-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:17px}
+.fate-result-item{padding:13px;border:1px solid #ffffff28;border-radius:12px;background:#ffffff12;color:#edf4fa}
+.fate-result-item small,.fate-result-item b{display:block}.fate-result-item small{font-size:8px;letter-spacing:1px;color:#aec2d4;margin-bottom:5px}.fate-result-item b{font-size:12px;line-height:1.45}
+.onboarding-error{min-height:18px;color:#ffb6b6;font-size:11px;text-align:center;margin:10px 0 0}
+@media(max-width:780px){.onboarding-header{flex-wrap:wrap}.onboarding-student{order:3;width:100%;text-align:left}.onboarding-phase{margin-left:auto}.customize-layout,.fate-layout{grid-template-columns:1fr}.avatar-preview-card{min-height:450px}.avatar-preview{min-height:310px}.appearance-controls{grid-template-columns:1fr 1fr}.fate-notes-card{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.fate-notes-card h3,.fate-notes-card>p{grid-column:span 2}.fate-notes-icon{grid-column:span 2}}
+@media(max-width:520px){.onboarding-main{width:calc(100% - 22px);padding:19px 0 28px}.onboarding-phase{font-size:7px}.onboarding-brand{font-size:14px}.appearance-panel{padding:15px}.appearance-controls{grid-template-columns:1fr;gap:14px}.onboarding-actions{align-items:flex-start;flex-direction:column}.onboarding-actions button{width:100%}.avatar-preview-caption{align-items:flex-start;flex-direction:column}.avatar-preview-caption small{text-align:left}.fate-wheel-card{padding:18px 13px}.fate-result-summary{grid-template-columns:1fr}.fate-notes-card{display:block}}
