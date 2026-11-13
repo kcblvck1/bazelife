@@ -83,7 +83,7 @@ function sceneDescription(place){const desc={hostel:"Your room — rest and take
 function enterLocation(place,silent=false){if(!place)return;if(state.location!==place.name){if(state.energy<3){toast("You're too tired to travel. Rest first.");return;}state.energy=Math.max(0,state.energy-3);advanceTime(5);}
  if(place.type==="hostel"&&place.gender&&place.gender!==state.gender){toast("This hostel is for its residents. Visit your own hostel instead.");return;}
  if(mapWasOpen){restoreWorldViewport();$("map-screen").hidden=true;mapWasOpen=false;}
- state.location=place.name;if(onlineProfile?.id)updateOnlineLocation(onlineProfile,place.name).then(()=>publishPlayerPosition(onlineProfile,place.name,world?.player?.position?{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}:null)).catch(console.warn);world.renderInterior(place,state.gender);world.localUserId=onlineProfile?.id||null;world.setRemotePlayers(Object.values(livePresence).flat());$("map-marker-layer").hidden=true;$("map-controls").hidden=true;$("map-back-button").hidden=true;$("mobile-movement").hidden=true;updateSceneHeading(place);renderActions();updateHUD();if(!silent)setActivity("You entered "+place.name,sceneDescription(place));savePlayer(state);}
+ state.location=place.name;if(onlineProfile?.id)updateOnlineLocation(onlineProfile,place.name).then(()=>publishPlayerPosition(onlineProfile,place.name,world?.player?.position?{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}:null)).catch(error=>console.warn("Could not update online location.",error));world.renderInterior(place,state.gender);world.localUserId=onlineProfile?.id||null;refreshRemotePlayers();$("map-marker-layer").hidden=true;$("map-controls").hidden=true;$("map-back-button").hidden=true;$("mobile-movement").hidden=true;updateSceneHeading(place);renderActions();updateHUD();if(!silent)setActivity("You entered "+place.name,sceneDescription(place));savePlayer(state);}
 function openMap(){
  if(!world)return;
  mapWasOpen=true;
@@ -164,21 +164,37 @@ function openFood(){
 function openJobs(){openModal("Jobs & side hustles",`<div class="modal-row"><div><b>🚕 ProTaxi driver</b><small>₦3,000 per ride · Five rides per day · Current: ${state.rides}/5</small></div><button id="job-taxi">Work</button></div><div class="modal-row"><div><b>📚 Tutoring</b><small>Earn ₦2,500 · Costs 15 energy</small></div><button id="job-tutor">Work</button></div><div class="modal-row"><div><b>💻 Freelancing</b><small>Earn ₦4,000 · Costs 20 energy</small></div><button id="job-freelance">Work</button></div>`);$("job-taxi").onclick=()=>runJob(doTaxiRide,30);$("job-tutor").onclick=()=>runJob(doTutoring,60);$("job-freelance").onclick=()=>runJob(doFreelance,90);}
 function runJob(fn,minutes){const result=fn(state);if(!result.ok){toast(result.message);return;}advanceTime(minutes);closeModal();toast(result.message);setActivity("Work completed",result.message);updateHUD();savePlayer(state);}
 function openActivities(){openModal("Activities",`<div class="modal-row"><div><b>📖 Study</b><small>Study in a class block or the Library</small></div><button data-action="study">Study</button></div><div class="modal-row"><div><b>🫂 Socialise</b><small>Improve social and fun</small></div><button data-action="social">Socialise</button></div><div class="modal-row"><div><b>🎉 Have fun</b><small>Improve fun; costs energy</small></div><button data-action="fun">Have fun</button></div><div class="modal-row"><div><b>😴 Rest</b><small>Recover 25 energy</small></div><button data-action="rest">Rest</button></div><div class="modal-row"><div><b>🏃 Exercise</b><small>Best done at Football Stadium</small></div><button data-action="exercise">Exercise</button></div>`);$("modal-content").querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>{closeModal();runActivity(b.dataset.action);});}
+function refreshRemotePlayers(){
+ if(!world||world.mode!=="interior"||!state||!onlineProfile?.id)return;
+ const players=Object.values(livePresence||{}).flat();
+ const sameLocation=players.filter(player=>player?.user_id!==onlineProfile.id&&player?.location===state.location);
+ world.localUserId=onlineProfile.id;
+ world.setRemotePlayers(sameLocation);
+}
 async function connectCampusCommunity(){
  try{
   liveChannel=await subscribeToCampus(onlineProfile,state.location,presence=>{
-   livePresence=presence;world?.setRemotePlayers(Object.values(presence).flat());
+   livePresence=presence;
+   refreshRemotePlayers();
   },message=>{
    if($("modal-title")?.textContent==="T Social"){const stream=$("campus-chat-stream");if(stream){stream.insertAdjacentHTML("beforeend",chatMessageHTML(message));stream.scrollTop=stream.scrollHeight;}}
   },message=>{
    if(directChatTarget&&(message.sender_id===directChatTarget.id||message.recipient_id===directChatTarget.id))refreshDirectConversation(directChatTarget,true).catch(console.warn);
+  },status=>{
+   if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){
+    console.warn("Supabase Realtime status:",status);
+   }
   });
+  refreshRemotePlayers();
   if(presenceTimer)clearInterval(presenceTimer);
   presenceTimer=setInterval(()=>{
    if(!onlineProfile?.id||!state||!world?.player||world.mode!=="interior")return;
-   publishPlayerPosition(onlineProfile,state.location,{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}).catch(()=>{});
-  },250);
- }catch(error){console.warn("Campus realtime connection failed",error);}
+   publishPlayerPosition(onlineProfile,state.location,{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}).catch(error=>console.warn("Player position sync failed.",error));
+  },300);
+ }catch(error){
+  console.error("Campus realtime connection failed.",error);
+  toast("Multiplayer connection failed: "+(error.message||"Check your connection."));
+ }
 }
 function chatMessageHTML(message){return `<div class="modal-row"><div><b>@${escapeHTML(message.sender_username||"student")}</b><small>${escapeHTML(message.body||"")}</small></div><small>${new Date(message.created_at||Date.now()).toLocaleTimeString()}</small></div>`;}
 async function openSocial(){

@@ -400,8 +400,20 @@ export class World3D {
          this.remotePlayers.set(p.user_id,avatar);
        }
        const x=Number.isFinite(Number(p.x))?Number(p.x):0;
-       const z=Number.isFinite(Number(p.z))?Number(p.z):0;
-       avatar.userData.remoteTarget=new THREE.Vector3(THREE.MathUtils.clamp(x,this.currentPlace.type==="hostel"?-5.8:-9.5,this.currentPlace.type==="hostel"?11.5:9.5),0,THREE.MathUtils.clamp(z,this.currentPlace.type==="hostel"?-5.8:-9.5,this.currentPlace.type==="hostel"?5.8:9.5));
+       const z=Number.isFinite(Number(p.z))?Number(p.z):2.5;
+       const isHostel=this.currentPlace.type==="hostel";
+       const target=new THREE.Vector3(
+         THREE.MathUtils.clamp(x,isHostel?-5.8:-10.2,isHostel?11.5:10.2),
+         0,
+         THREE.MathUtils.clamp(z,isHostel?-5.8:-10.2,10.2)
+       );
+       // Spawn the remote avatar at its received coordinates immediately;
+       // subsequent Presence snapshots are smoothly interpolated by animate().
+       if(!avatar.userData.remotePositionInitialized){
+         avatar.position.copy(target);
+         avatar.userData.remotePositionInitialized=true;
+       }
+       avatar.userData.remoteTarget=target;
        if(Number.isFinite(Number(p.rotation)))avatar.rotation.y=Number(p.rotation);
        avatar.visible=true;
      }
