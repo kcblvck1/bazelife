@@ -79,23 +79,40 @@ export class World3D {
     court(cx,vZ,17,6.6,0x4c8b72);this.add(box(16.2,1,.07,netMat,cx,1.1,vZ));for(const side of [-1,1])this.add(box(.12,2,.12,post,cx+side*8.3,1,vZ));label("VOLLEYBALL",cx,vZ);
     court(cx,dZ,15,6.6,0x6a8d9e);for(const side of [-1,1]){this.add(box(.025,.025,5.8,line,cx+side*4.9,.18,dZ));this.add(box(.1,1.6,.1,post,cx+side*7.55,.8,dZ));}this.add(box(14.6,.85,.055,netMat,cx,1,dZ));label("BADMINTON",cx,dZ);
   }
-  makeHuman(x,z,scale=1,shirt=0x4f789b,gender="male"){
-    // Campus students wear varied everyday outfits: tees, polos, hoodies,
-    // jeans, skirts, sneakers and backpacks rather than plain stick figures.
+  makeHuman(x,z,scale=1,shirt=0x4f789b,gender="male",appearance=null){
+    // Campus students can use randomized everyday outfits; the player gets
+    // the exact limited appearance choices saved during onboarding.
     const g=new THREE.Group();
-    const skin=mat([0x6f4635,0x89583f,0xa66d4e,0xb77b5b][Math.floor(Math.random()*4)]);
-    const cloth=mat(shirt),pants=mat([0x26394e,0x35475a,0x4c4d54,0x6a5141,0x303c45][Math.floor(Math.random()*5)]);
-    const shoe=mat([0x20252b,0xe4e3dc,0x8b4f3d][Math.floor(Math.random()*3)]);
-    const hair=mat([0x211b18,0x30241e,0x17191d][Math.floor(Math.random()*3)]);
+    const colorFrom=(value,fallback)=>typeof value==="string"&&/^#?[0-9a-f]{6}$/i.test(value)?parseInt(value.replace("#",""),16):(Number.isFinite(value)?value:fallback);
+    const skinColor=colorFrom(appearance?.skinTone,[0x6f4635,0x89583f,0xa66d4e,0xb77b5b][Math.floor(Math.random()*4)]);
+    const pantsColor=colorFrom(appearance?.bottomColor,[0x26394e,0x35475a,0x4c4d54,0x6a5141,0x303c45][Math.floor(Math.random()*5)]);
+    const shoeColor=colorFrom(appearance?.shoeColor,[0x20252b,0xe4e3dc,0x8b4f3d][Math.floor(Math.random()*3)]);
+    const hairColor=colorFrom(appearance?.hairColor,[0x211b18,0x30241e,0x17191d][Math.floor(Math.random()*3)]);
+    const cloth=mat(colorFrom(appearance?.topColor,shirt)),pants=mat(pantsColor),shoe=mat(shoeColor),skin=mat(skinColor),hair=mat(hairColor);
+    const hairStyle=appearance?.hairStyle|| (gender==="female"?"braids":"lowcut");
+    const topStyle=appearance?.topStyle||"tshirt";
+    const bottomStyle=appearance?.bottomStyle||"trousers";
     const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.27*scale,.58*scale,4,8),cloth);torso.position.y=1.08*scale;torso.castShadow=true;g.add(torso);
     const head=new THREE.Mesh(new THREE.SphereGeometry(.22*scale,12,10),skin);head.position.y=1.67*scale;head.castShadow=true;g.add(head);
-    g.userData.torso=torso;g.userData.head=head;
-    const hairCap=new THREE.Mesh(new THREE.SphereGeometry(gender==="female"?.25*scale:.228*scale,12,8,0,Math.PI*2,0,Math.PI*.55),hair);hairCap.position.y=1.75*scale;g.add(hairCap);
-    // Character silhouettes follow the supplied male/female full-body references.
-    if(gender==="female"){
-      const backHair=new THREE.Mesh(new THREE.CapsuleGeometry(.13*scale,.48*scale,4,8),hair);backHair.position.set(0,1.48*scale,-.16*scale);g.add(backHair);
-      for(const side of [-1,1]){const lock=new THREE.Mesh(new THREE.CapsuleGeometry(.07*scale,.28*scale,3,6),hair);lock.position.set(side*.19*scale,1.53*scale,-.015);g.add(lock);}
-    }else if(Math.random()>.7){const puff=new THREE.Mesh(new THREE.SphereGeometry(.12*scale,8,8),hair);puff.position.set(.17*scale,1.67*scale,-.02);g.add(puff);}
+    g.userData.torso=torso;g.userData.head=head;g.userData.appearance=appearance||null;
+    if(topStyle==="hoodie"){
+      const hood=new THREE.Mesh(new THREE.SphereGeometry(.24*scale,12,10),cloth);hood.scale.set(1,1,.45);hood.position.set(0,1.43*scale,-.18*scale);g.add(hood);
+      g.add(box(.52*scale,.08*scale,.055*scale,cloth,0,.83*scale,.24*scale));
+    }else if(topStyle==="polo"||topStyle==="buttonup"){
+      for(const side of [-1,1]){const collar=new THREE.Mesh(new THREE.BoxGeometry(.16*scale,.10*scale,.10*scale),mat(0xe8e8e2));collar.position.set(side*.09*scale,1.38*scale,.08*scale);g.add(collar);}
+      if(topStyle==="buttonup")for(let i=0;i<3;i++){const button=new THREE.Mesh(new THREE.SphereGeometry(.022*scale,6,6),mat(0xe8e8e2));button.position.set(0,(1.22-i*.16)*scale,.266*scale);g.add(button);}
+    }
+    const capRadius=hairStyle==="afro"?.31:hairStyle==="lowcut"?.205:.235;
+    const hairCap=new THREE.Mesh(new THREE.SphereGeometry(capRadius*scale,12,8,0,Math.PI*2,0,Math.PI*.62),hair);hairCap.position.y=1.75*scale;g.add(hairCap);
+    if(hairStyle==="braids"||hairStyle==="locs"){
+      const backHair=new THREE.Mesh(new THREE.CapsuleGeometry(.14*scale,.52*scale,4,8),hair);backHair.position.set(0,1.43*scale,-.16*scale);g.add(backHair);
+      for(const side of [-1,1])for(let strand=0;strand<2;strand++){
+        const lock=new THREE.Mesh(new THREE.CapsuleGeometry(.055*scale,.32*scale,3,6),hair);
+        lock.position.set(side*(.18+strand*.055)*scale,(1.37-strand*.15)*scale,.015*scale);g.add(lock);
+      }
+    }else if(hairStyle==="afro"){
+      hairCap.scale.set(1.12,1.05,1.08);
+    }
     const arms=[];
     for(const side of [-1,1]){
       const armPivot=new THREE.Group();armPivot.position.set(side*.29*scale,1.34*scale,0);
@@ -109,8 +126,8 @@ export class World3D {
     }
     // Backpack straps and body on a random selection of students.
     if(Math.random()>.43){const bagMat=mat([0x293d55,0x754d3e,0x3f654e,0x6b557c][Math.floor(Math.random()*4)]);const bag=box(.48*scale,.55*scale,.22*scale,bagMat,0,1.1*scale,-.28*scale);g.add(bag);}
-    // Occasional skirt outfit, with leggings/shoes, to vary the campus crowd.
-    if(Math.random()>.82){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.24*scale,.34*scale,.35*scale,8),cloth);skirt.position.y=.73*scale;g.add(skirt);}
+    // Optional skirt is one of the limited player clothing choices.
+    if(bottomStyle==="skirt"||(!appearance&&Math.random()>.82)){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.24*scale,.34*scale,.35*scale,8),cloth);skirt.position.y=.73*scale;g.add(skirt);}
     g.position.set(x,0,z);g.userData.walk={x,z,phase:0,speed:0,radius:0,arms,legs:g.userData.legs};
     this.add(g);this.npcs.push(g);return g;
   }
@@ -230,8 +247,8 @@ export class World3D {
   }
   resetMapCamera(){this.mapCamera.position.set(103,126,103);this.controls.target.set(0,0,0);this.controls.update();}
   addRoomLight(){this.scene.background.set(0xdce8ef);this.scene.fog=new THREE.Fog(0xdce8ef,35,90);}
-  renderInterior(place,gender="male"){
-    this.mode="interior";this.currentPlace=place;this.currentGender=gender;this.interiorScale=place.type==="hostel"?1.3:1.18;this.root.scale.setScalar(this.interiorScale);this.controls.enabled=false;this.clearRoot();this.markerLayer.innerHTML="";this.addRoomLight();
+  renderInterior(place,gender="male",appearance=null){
+    this.mode="interior";this.currentPlace=place;this.currentGender=gender;this.avatarAppearance=appearance||this.avatarAppearance||null;this.interiorScale=place.type==="hostel"?1.3:1.18;this.root.scale.setScalar(this.interiorScale);this.controls.enabled=false;this.clearRoot();this.markerLayer.innerHTML="";this.addRoomLight();
     if(place.type==="gate"){this.isometricInterior=false;this.renderGateScene();return;}
     const floorColor=place.type==="hostel"?(gender==="female"?0xcdbbd1:0xb9c9d8):0xc8b997;
     const wallColor=place.type==="hostel"?(gender==="female"?0xe8ddeb:0xdce7ef):0xe9e3d5;
@@ -380,7 +397,7 @@ export class World3D {
     // Doorway opening / threshold is at the camera end of the room.
     addBox(3,.15,.5,0x746148,0,0,5.8);
     this.yaw=0;this.pitch=-.12;
-    this.player=this.makeHuman(0,2.5,.98,gender==="female"?0x9a658e:0x4d7190,gender);
+    this.player=this.makeHuman(0,2.5,.98,gender==="female"?0x9a658e:0x4d7190,gender,this.avatarAppearance);
     this.npcs=this.npcs.filter(n=>n!==this.player);
     this.player.userData.isPlayer=true;
     this.player.position.set(0,0,2.5);
@@ -495,16 +512,28 @@ export class World3D {
     walkTick();
   }
   showBedRestPose(action,duration,onDone){
-    const g=new THREE.Group(),shirt=mat(this.currentGender==="female"?0x9b6b91:0x527b9b),trousers=mat(0x34465b);
-    // Lie head-to-toe down the bed's long axis, with the head on its pillow.
-    const pillow=new THREE.Mesh(new THREE.BoxGeometry(.92,.15,.72),mat(0xf1eee6));pillow.position.set(0,.11,-1.82);g.add(pillow);
-    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.68,4,10),shirt);torso.rotation.x=Math.PI/2;torso.position.set(0,.19,-.70);g.add(torso);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.22,12,10),mat(0x9b684d));head.position.set(0,.23,-1.58);g.add(head);
-    const hair=new THREE.Mesh(new THREE.SphereGeometry(.225,12,8,0,Math.PI*2,0,Math.PI*.58),mat(0x241e1b));hair.position.set(0,.28,-1.61);g.add(hair);
-    for(const side of [-1,1]){const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.5,3,7),shirt);arm.rotation.z=Math.PI/2;arm.position.set(side*.31,.12,-.52);g.add(arm);const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.72,4,8),trousers);leg.rotation.x=Math.PI/2;leg.position.set(side*.12,.12,.45);g.add(leg);}
-    const blanket=new THREE.Mesh(new THREE.BoxGeometry(1.48,.09,1.95),mat(action==="sleep"?0x718da7:0x9caaaf));blanket.position.set(0,.2,.28);g.add(blanket);
-    const bed=this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45);g.position.set(bed.x,.48,bed.z);this.add(g);this.bedAvatar=g;
-    const started=performance.now();const tick=()=>{if(this.bedAvatar!==g)return;const t=(performance.now()-started)/duration;g.position.y=.48+(action==="sleep"?Math.sin(t*Math.PI*8)*.012:0);if(t>=1){this.root.remove(g);this.bedAvatar=null;if(this.player){this.player.visible=true;this.player.position.set(bed.x,0,bed.z+2.95);this.updateThirdPersonCamera();}onDone();}else setTimeout(tick,80);};tick();
+    // Reuse the player's fully customized 3D model and rotate it into a natural
+    // face-up sleeping pose. The mattress and built-in pillow remain visible;
+    // no second avatar or opaque blanket can bury the body inside the bed.
+    const bed=this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45);
+    const g=this.makeHuman(0,0,.98,this.currentGender==="female"?0x9a658e:0x4d7190,this.currentGender,this.avatarAppearance);
+    this.npcs=this.npcs.filter(n=>n!==g);
+    g.rotation.x=-Math.PI/2;
+    g.scale.set(1,1.2,1);
+    g.position.set(bed.x,.97,bed.z-.13);
+    this.bedAvatar=g;
+    const started=performance.now();
+    const tick=()=>{
+      if(this.bedAvatar!==g)return;
+      const t=(performance.now()-started)/duration;
+      if(g.userData.torso)g.userData.torso.scale.y=1+Math.sin(t*Math.PI*8)*.008;
+      if(t>=1){
+        this.root.remove(g);this.bedAvatar=null;
+        if(this.player){this.player.visible=true;this.player.position.set(bed.x,0,bed.z+2.95);this.updateThirdPersonCamera();}
+        onDone();
+      }else setTimeout(tick,80);
+    };
+    tick();
   }
   playFixtureAction(action,duration=3000,onDone=()=>{}){
     if(this.mode!=="interior"||this.currentPlace?.type!=="hostel"||!this.player){onDone();return;}
@@ -513,7 +542,7 @@ export class World3D {
   }
   showFixturePose(action,duration,onDone){
     if(!this.player){onDone();return;}this.player.visible=false;
-    const g=this.makeHuman(0,0,.72,this.currentGender==="female"?0x9b6b91:0x527b9b,this.currentGender);this.npcs=this.npcs.filter(n=>n!==g);g.userData.walk.speed=0;g.userData.walk.radius=0;
+    const g=this.makeHuman(0,0,.72,this.currentGender==="female"?0x9b6b91:0x527b9b,this.currentGender,this.avatarAppearance);this.npcs=this.npcs.filter(n=>n!==g);g.userData.walk.speed=0;g.userData.walk.radius=0;
     if(action==="toilet"){g.position.set(7.1,.48,-4.12);g.rotation.y=Math.PI;g.userData.torso.position.y=.68;g.userData.head.position.y=1.10;g.userData.legs?.forEach(leg=>{leg.position.y=.52;leg.rotation.x=-Math.PI/2;});g.userData.arms?.forEach(arm=>{arm.position.y=.86;arm.rotation.x=-.45;});}
     else{g.position.set(10.45,.28,-4.95);g.userData.arms?.forEach((arm,i)=>{arm.rotation.x=-.35;arm.rotation.z=i===0?.35:-.35;});}
     this.fixtureAvatar=g;
