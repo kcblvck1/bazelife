@@ -423,7 +423,7 @@ export class World3D {
        active.add(p.user_id);
        let avatar=this.remotePlayers.get(p.user_id);
        if(!avatar){
-         avatar=this.makeHuman(0,0,.98,p.gender==="female"?0x9a658e:0x4d7190,p.gender||"male");
+         avatar=this.makeHuman(0,0,.98,p.gender==="female"?0x9a658e:0x4d7190,p.gender||"male",p.appearance||null);
          avatar.userData.remoteUserId=p.user_id;avatar.userData.remoteUsername=p.username||"student";
          avatar.add(this.makeRemoteNameplate("@"+(p.username||"student")));
          this.remotePlayers.set(p.user_id,avatar);
