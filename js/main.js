@@ -276,6 +276,19 @@ async function handleLogin(event){
    const saved=loadPlayer(user.username),base=createNewState(user);
    if(user.gameSetup)Object.assign(base,user.gameSetup);
    state=saved?{...base,...saved,username:user.username,name:user.name,gender:user.gender}:{...base};
+   // A completed cloud profile wins over an unfinished local onboarding snapshot.
+   if(user.gameSetup?.onboardingComplete){
+    const localProfileCompleted=saved?.onboardingComplete===true;
+    Object.assign(state,{
+     onboardingComplete:true,
+     appearance:user.gameSetup.appearance||state.appearance,
+     course:user.gameSetup.course||state.course,
+     level:user.gameSetup.level||state.level,
+     studentBackground:user.gameSetup.studentBackground||state.studentBackground,
+     cash:localProfileCompleted?state.cash:user.gameSetup.cash,
+     nextAmnestyAllowanceDay:localProfileCompleted?(state.nextAmnestyAllowanceDay??user.gameSetup.nextAmnestyAllowanceDay):user.gameSetup.nextAmnestyAllowanceDay
+    });
+   }
    // Accounts created before the onboarding feature keep their existing game.
    if(saved&&saved.onboardingComplete===undefined&&!user.onboardingRequired&&!user.gameSetup)state.onboardingComplete=true;
    if(!user.onboardingRequired&&!user.gameSetup&&!saved)state.onboardingComplete=true;
