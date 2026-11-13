@@ -187,9 +187,11 @@ async function connectCampusCommunity(){
   });
   refreshRemotePlayers();
   if(presenceTimer)clearInterval(presenceTimer);
+  // Send compact movement snapshots through Broadcast. Presence stays static
+  // until the player changes buildings, avoiding channel shutdown rate limits.
   presenceTimer=setInterval(()=>{
    if(!onlineProfile?.id||!state||!world?.player||world.mode!=="interior")return;
-   publishPlayerPosition(onlineProfile,state.location,{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}).catch(error=>console.warn("Player position sync failed.",error));
+   publishPlayerPosition(onlineProfile,state.location,{x:world.player.position.x,z:world.player.position.z,rotation:world.player.rotation.y}).catch(error=>console.warn("Player position broadcast failed.",error));
   },300);
  }catch(error){
   console.error("Campus realtime connection failed.",error);
