@@ -194,6 +194,7 @@ async function completeOnboarding(){
   onboardingSession=null;$("onboarding-screen").hidden=true;
   startGame(user,playerState);
   setActivity("Your fate has been decided",`${results.level} · ${results.course} · ${results.background}. Your student life starts now.`);
+  openStudentTimetable();
   toast(background==="amnesty"?"Welcome! Your ₦300,000 school allowance arrives every 90 in-game days.":`Welcome to Baze Life — you start with ${money(initialCash)}.`);
  }catch(error){
   $("onboarding-error").textContent=error.message||"Your student profile could not be saved. Please try again.";
