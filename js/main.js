@@ -30,7 +30,12 @@ const BAZE_UNDERGRADUATE_COURSES=[
  "B.Sc. Petroleum Chemistry","B.Sc. Physics with Computing","B.Sc. Software Engineering",
  "B.Sc. Architecture","B.Sc. Building","B.Sc. Estate Management","B.Sc. Quantity Surveying",
  "B.Sc. Surveying & Geoinformatics","B.Sc. Urban & Regional Planning",
- "B.Sc. Human Anatomy","B.Sc. Human Physiology"
+ "B.Sc. Human Anatomy","B.Sc. Human Physiology",
+ "MBA – Master of Business Administration","LL.M – Master of Laws",
+ "M.Sc. Accounting","M.Sc. Animal & Environmental Science","M.Sc. Chemistry",
+ "M.Sc. Computer Science","M.Sc. Economics","M.Sc. International Relations & Diplomacy",
+ "M.Sc. Management","M.Sc. Mass Communication","M.Sc. Parasitology",
+ "M.Sc. Public Administration","M.Sc. Sociology"
 ];
 const APPEARANCE_CHOICES={
  skinTone:{label:"Skin tone",swatches:true,options:[["Deep","#6f4635"],["Rich brown","#89583f"],["Warm brown","#a66d4e"],["Golden brown","#b77b5b"]]},
@@ -43,8 +48,8 @@ const APPEARANCE_CHOICES={
  shoeColor:{label:"Footwear",swatches:true,options:[["Black","#20252b"],["White","#e4e3dc"],["Tan","#8b4f3d"]]}
 };
 const FATE_STEPS=[
- {key:"course",title:"Which course will you study?",description:"Randomly selected from the undergraduate degree programmes in your supplied Baze University PDF.",icon:"🎓",options:BAZE_UNDERGRADUATE_COURSES},
- {key:"level",title:"What level will you enter?",description:"Your university level is selected randomly. The available levels run from 100 to 500.",icon:"📚",options:["100 Level","200 Level","300 Level","400 Level","500 Level"]},
+ {key:"course",title:"Which programme will you study?",description:"Randomly selected from the undergraduate and postgraduate programmes listed in your supplied Baze University PDF.",icon:"🎓",options:BAZE_UNDERGRADUATE_COURSES},
+ {key:"level",title:"What level will you enter?",description:"Your university level is selected randomly. Undergraduate levels run from 100 to 500; postgraduate programmes use postgraduate year 1 or 2.",icon:"📚",options:["100 Level","200 Level","300 Level","400 Level","500 Level"]},
  {key:"background",title:"What is your financial background?",description:"Your background decides your opening wallet and, for Amnesty students, the recurring school allowance.",icon:"💳",options:["Nepo Baby","Middle Class","Amnesty Student"]}
 ];
 
@@ -93,9 +98,19 @@ function secureRandomIndex(length){
  if(window.crypto?.getRandomValues){const n=new Uint32Array(1);window.crypto.getRandomValues(n);return n[0]%length;}
  return Math.floor(Math.random()*length);
 }
+function fateOptions(step){
+ if(step.key!=="level")return step.options;
+ const selectedCourse=onboardingSession?.results?.course||"";
+ return /^(MBA|LL\.M|M\.Sc\.)/.test(selectedCourse)?["Postgraduate Year 1","Postgraduate Year 2"]:step.options;
+}
 function renderFateStage(){
  if(!onboardingSession)return;
  const step=FATE_STEPS[onboardingSession.step],result=onboardingSession.results[step.key];
+ if(step.key==="level"){
+  $("fate-step-description").textContent=fateOptions(step).some(value=>value.startsWith("Postgraduate"))
+   ?"Your postgraduate year is selected randomly. The available options are postgraduate year 1 or 2."
+   :"Your undergraduate level is selected randomly from 100 to 500.";
+ }
  $("fate-step-eyebrow").textContent=`SPIN ${onboardingSession.step+1} OF 3`;
  $("fate-step-title").textContent=step.title;
  $("fate-step-description").textContent=step.description;
@@ -123,8 +138,9 @@ async function spinFate(){
  const spinButton=$("fate-spin-button"),wheel=$("fate-wheel"),value=$("fate-wheel-value");
  spinButton.disabled=true;wheel.classList.add("spinning");value.classList.add("rolling");
  $("fate-spin-status").textContent="Spinning… fate is being decided.";
- const winner=step.options[secureRandomIndex(step.options.length)];
- const ticker=window.setInterval(()=>{value.textContent=step.options[secureRandomIndex(step.options.length)];},70);
+ const options=fateOptions(step);
+ const winner=options[secureRandomIndex(options.length)];
+ const ticker=window.setInterval(()=>{value.textContent=options[secureRandomIndex(options.length)];},70);
  await new Promise(resolve=>window.setTimeout(resolve,2400));
  window.clearInterval(ticker);wheel.classList.remove("spinning");value.classList.remove("rolling");
  onboardingSession.results[step.key]=winner;onboardingSession.spinning=false;
