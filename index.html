@@ -63,6 +63,95 @@
     </div>
   </section>
 
+  <section id="onboarding-screen" class="onboarding-screen" hidden>
+    <header class="onboarding-header">
+      <div class="onboarding-brand"><span class="brand-mark small">B</span><span>BAZE <b>LIFE</b></span></div>
+      <div class="onboarding-student" id="onboarding-student-label">Creating your student story</div>
+      <div class="onboarding-phase">NEW STUDENT INTAKE · 2026</div>
+    </header>
+
+    <main class="onboarding-main">
+      <section id="customization-stage" class="onboarding-stage">
+        <div class="onboarding-intro">
+          <p class="eyebrow">STAGE 01 · CREATE YOUR AVATAR</p>
+          <h1>Your look. Your rules.</h1>
+          <p>Choose from a limited campus wardrobe and customize your character before university life begins.</p>
+        </div>
+        <div class="customize-layout">
+          <aside class="avatar-preview-card">
+            <div class="avatar-preview-heading"><span>CHARACTER PREVIEW</span><small id="avatar-gender-label">MALE STUDENT</small></div>
+            <div id="avatar-preview" class="avatar-preview" data-hair="lowcut" data-top="tshirt" data-bottom="trousers">
+              <div class="avatar-preview-glow"></div>
+              <div class="avatar-floor"></div>
+              <div class="avatar-figure">
+                <div class="avatar-hair"></div>
+                <div class="avatar-head"></div>
+                <div class="avatar-neck"></div>
+                <div class="avatar-body"></div>
+                <div class="avatar-arm avatar-arm-left"></div>
+                <div class="avatar-arm avatar-arm-right"></div>
+                <div class="avatar-leg avatar-leg-left"></div>
+                <div class="avatar-leg avatar-leg-right"></div>
+                <div class="avatar-shoe avatar-shoe-left"></div>
+                <div class="avatar-shoe avatar-shoe-right"></div>
+              </div>
+            </div>
+            <div class="avatar-preview-caption"><b id="avatar-outfit-name">Campus casual</b><small>Preview updates as you make choices</small></div>
+          </aside>
+          <section class="appearance-panel">
+            <div class="appearance-panel-heading"><h2>Appearance & outfit</h2><span>LIMITED COLLECTION</span></div>
+            <div id="appearance-controls" class="appearance-controls"></div>
+            <div class="onboarding-actions">
+              <span>Changes are saved to your student profile.</span>
+              <button id="customize-continue" class="primary" type="button">Continue to my fate <span>→</span></button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="fate-stage" class="onboarding-stage" hidden>
+        <div class="onboarding-intro fate-intro">
+          <p class="eyebrow">STAGE 02 · THE UNIVERSITY LOTTERY</p>
+          <h1>Three spins. One student story.</h1>
+          <p>Your course, year and student background will be randomly decided. Spin each wheel to reveal your fate.</p>
+        </div>
+        <div class="fate-progress" aria-label="Fate spinner progress">
+          <span class="fate-progress-step active" id="fate-progress-1">01 <small>COURSE</small></span>
+          <i></i>
+          <span class="fate-progress-step" id="fate-progress-2">02 <small>LEVEL</small></span>
+          <i></i>
+          <span class="fate-progress-step" id="fate-progress-3">03 <small>BACKGROUND</small></span>
+        </div>
+        <div class="fate-layout">
+          <section class="fate-wheel-card">
+            <p id="fate-step-eyebrow" class="eyebrow">SPIN 1 OF 3</p>
+            <h2 id="fate-step-title">Which course will you study?</h2>
+            <p id="fate-step-description" class="fate-description">Your course is selected randomly from the undergraduate programmes in the supplied Baze University list.</p>
+            <div class="fate-wheel" id="fate-wheel">
+              <span class="fate-wheel-pointer">▼</span>
+              <div class="fate-wheel-icon" id="fate-wheel-icon">🎓</div>
+              <div id="fate-wheel-value" class="fate-wheel-value">Ready?</div>
+              <small id="fate-wheel-subtitle">The wheel is waiting for you</small>
+            </div>
+            <p id="fate-spin-status" class="fate-spin-status">Your result will be locked after the spin.</p>
+            <button id="fate-spin-button" class="primary fate-spin-button" type="button">🎡 Spin for my course</button>
+            <button id="fate-next-button" class="secondary-button fate-next-button" type="button" hidden>Continue to next spin →</button>
+          </section>
+          <aside class="fate-notes-card">
+            <span class="fate-notes-icon">✦</span>
+            <h3>Every student has a different starting point.</h3>
+            <p>Once all three spins are complete, your choices are saved to your character profile and starting wallet.</p>
+            <div class="fate-rule"><b>NEPO BABY</b><span>Starts with ₦500,000</span></div>
+            <div class="fate-rule"><b>MIDDLE CLASS</b><span>Starts with ₦100,000</span></div>
+            <div class="fate-rule"><b>AMNESTY STUDENT</b><span>₦300,000 every 3 in-game months</span></div>
+          </aside>
+        </div>
+        <div id="fate-result-summary" class="fate-result-summary" hidden></div>
+        <p id="onboarding-error" class="onboarding-error" role="status"></p>
+      </section>
+    </main>
+  </section>
+
   <div id="game-screen" class="game-screen" hidden>
     <header class="topbar">
       <div class="brand-lockup"><span class="brand-mark small">B</span><div>BAZE <b>LIFE</b><small>BAZE UNIVERSITY · ABUJA</small></div></div>
