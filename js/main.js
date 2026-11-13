@@ -14,7 +14,7 @@ let state=null,world=null,phone=null,toastTimer=null,tickTimer=null,onlineProfil
 let mapWasOpen=false,presenceTimer=null,directChatTarget=null,bazetalkUnread={},bazetalkLastRead={};
 let onboardingSession=null;
 
-const BAZE_UNDERGRADUATE_COURSES=[
+const BAZE_UNIVERSITY_PROGRAMMES=[
  "B.Eng. Civil Engineering","B.Eng. Computer Engineering","B.Eng. Electrical & Electronics Engineering",
  "B.Eng. Mechanical Engineering","B.Eng. Petroleum & Gas Engineering","B.Eng. Telecommunications Engineering",
  "LL.B. Law","LL.B. Business Law","LL.B. Private & Public Law",
@@ -48,7 +48,7 @@ const APPEARANCE_CHOICES={
  shoeColor:{label:"Footwear",swatches:true,options:[["Black","#20252b"],["White","#e4e3dc"],["Tan","#8b4f3d"]]}
 };
 const FATE_STEPS=[
- {key:"course",title:"Which programme will you study?",description:"Randomly selected from the undergraduate and postgraduate programmes listed in your supplied Baze University PDF.",icon:"🎓",options:BAZE_UNDERGRADUATE_COURSES},
+ {key:"course",title:"Which programme will you study?",description:"Randomly selected from the undergraduate and postgraduate programmes listed in your supplied Baze University PDF.",icon:"🎓",options:BAZE_UNIVERSITY_PROGRAMMES},
  {key:"level",title:"What level will you enter?",description:"Your university level is selected randomly. Undergraduate levels run from 100 to 500; postgraduate programmes use postgraduate year 1 or 2.",icon:"📚",options:["100 Level","200 Level","300 Level","400 Level","500 Level"]},
  {key:"background",title:"What is your financial background?",description:"Your background decides your opening wallet and, for Amnesty students, the recurring school allowance.",icon:"💳",options:["Nepo Baby","Middle Class","Amnesty Student"]}
 ];
