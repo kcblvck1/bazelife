@@ -6,8 +6,8 @@ const mat = (color, roughness=0.9) => new THREE.MeshStandardMaterial({color,roug
 const box = (w,h,d,material,x=0,y=h/2,z=0) => { const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; return m; };
 
 export class World3D {
-  constructor(container, markerLayer, onSelect, onBedSelect=()=>{}) {
-    this.container=container; this.markerLayer=markerLayer; this.onSelect=onSelect; this.onBedSelect=onBedSelect;
+  constructor(container, markerLayer, onSelect, onBedSelect=()=>{}, onFixtureSelect=()=>{}) {
+    this.container=container; this.markerLayer=markerLayer; this.onSelect=onSelect; this.onBedSelect=onBedSelect; this.onFixtureSelect=onFixtureSelect;
     this.scene=new THREE.Scene(); this.scene.background=new THREE.Color(0x9bc4d8); this.scene.fog=new THREE.Fog(0x9bc4d8,125,230);
     this.root=new THREE.Group(); this.scene.add(this.root);
     this.mapCamera=new THREE.PerspectiveCamera(43,1,0.1,500);
@@ -22,12 +22,12 @@ export class World3D {
     this.ambient=new THREE.HemisphereLight(0xe7f3ff,0x78906a,2.0); this.scene.add(this.ambient);
     this.sun=new THREE.DirectionalLight(0xfff2d8,3.1); this.sun.position.set(-45,90,55); this.sun.castShadow=true; this.sun.shadow.mapSize.set(2048,2048); this.sun.shadow.camera.left=-90; this.sun.shadow.camera.right=90; this.sun.shadow.camera.top=90; this.sun.shadow.camera.bottom=-90; this.scene.add(this.sun);
     this.controls=new OrbitControls(this.mapCamera,this.renderer.domElement); this.controls.enableDamping=true; this.controls.dampingFactor=.07; this.controls.target.set(0,0,0); this.controls.minDistance=72; this.controls.maxDistance=210; this.controls.minPolarAngle=.34; this.controls.maxPolarAngle=1.25; this.controls.maxAzimuthAngle=Math.PI; this.controls.minAzimuthAngle=-Math.PI;
-    this.mode="map"; this.npcs=[]; this.vehicles=[]; this.remotePlayers=new Map(); this.markers=[]; this.clickables=[]; this.moveTarget=null; this.streetLights=[]; this.dayHour=12; this.keys=new Set(); this.yaw=0; this.pitch=0; this.dragLook=null; this.lastTime=performance.now(); this.mapCamStart=this.mapCamera.position.clone();
+    this.mode="map"; this.npcs=[]; this.vehicles=[]; this.remotePlayers=new Map(); this.markers=[]; this.clickables=[]; this.moveTarget=null; this.moveQueue=[]; this.pendingFixtureAction=null; this.fixtureAvatar=null; this.bedAvatar=null; this.streetLights=[]; this.dayHour=12; this.keys=new Set(); this.yaw=0; this.pitch=0; this.dragLook=null; this.lastTime=performance.now(); this.mapCamStart=this.mapCamera.position.clone();
     this.resizeObserver=new ResizeObserver(()=>this.resize()); this.resizeObserver.observe(this.container);
     this.bindMovement(); this.renderMap(); this.animate();
   }
   resize(){ const w=Math.max(1,this.container.clientWidth),h=Math.max(1,this.container.clientHeight); this.renderer.setSize(w,h,false); this.mapCamera.aspect=w/h; this.mapCamera.updateProjectionMatrix(); this.camera.aspect=w/h; this.camera.updateProjectionMatrix(); }
-  clearRoot(){ while(this.root.children.length){this.root.remove(this.root.children[0]);} this.clickables=[]; this.floorMesh=null; this.npcs=[]; this.vehicles=[]; this.remotePlayers.clear(); this.gateDemoCar=null; this.gateArms=[]; }
+  clearRoot(){ while(this.root.children.length){this.root.remove(this.root.children[0]);} this.clickables=[]; this.floorMesh=null; this.npcs=[]; this.vehicles=[]; this.remotePlayers.clear(); this.gateDemoCar=null; this.gateArms=[]; this.moveQueue=[]; this.pendingFixtureAction=null; this.fixtureAvatar=null; this.bedAvatar=null; }
   add(mesh){this.root.add(mesh);return mesh;}
   road(x1,z1,x2,z2,width=5,color=0x555b60){const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz);const r=this.add(box(len,.16,width,mat(color), (x1+x2)/2,.08,(z1+z2)/2));r.rotation.y=-Math.atan2(dz,dx);const stripe=this.add(box(len*.92,.025,.12,mat(0xe6ddbc),(x1+x2)/2,.17,(z1+z2)/2));stripe.rotation.y=r.rotation.y;return r;}
   path(points,width=3,color=0xcac8b9){for(let i=0;i<points.length-1;i++)this.road(points[i][0],points[i][1],points[i+1][0],points[i+1][1],width,color);}
@@ -68,6 +68,17 @@ export class World3D {
     addLine(x-w/2+1,z-d/2+1,x+w/2-1,z-d/2+1);addLine(x+w/2-1,z-d/2+1,x+w/2-1,z+d/2-1);addLine(x+w/2-1,z+d/2-1,x-w/2+1,z+d/2-1);addLine(x-w/2+1,z+d/2-1,x-w/2+1,z-d/2+1);addLine(x,z-d/2+1,x,z+d/2-1);
     const circle=new THREE.Mesh(new THREE.TorusGeometry(2.8,.07,6,48),line);circle.rotation.x=Math.PI/2;circle.position.set(x,.19,z);this.add(circle);
   }
+  makeSportsCourts(place){
+    const line=mat(0xf4f6e9),post=mat(0x344651),netMat=new THREE.MeshStandardMaterial({color:0xe8edf0,transparent:true,opacity:.58});
+    const court=(x,z,w,d,color)=>{this.add(box(w,.14,d,mat(color),x,.09,z));const edge=(a,b,c,e)=>{const m=box(Math.hypot(c-a,e-b),.025,.075,line,(a+c)/2,.18,(b+e)/2);m.rotation.y=-Math.atan2(e-b,c-a);this.add(m);};edge(x-w/2,z-d/2,x+w/2,z-d/2);edge(x+w/2,z-d/2,x+w/2,z+d/2);edge(x+w/2,z+d/2,x-w/2,z+d/2);edge(x-w/2,z+d/2,x-w/2,z-d/2);};
+    const label=(name,x,z)=>{const c=document.createElement("canvas");c.width=512;c.height=96;const ctx=c.getContext("2d");ctx.fillStyle="#213447";ctx.fillRect(0,0,512,96);ctx.fillStyle="#fff";ctx.font="bold 46px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(name,256,49);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const m=new THREE.Mesh(new THREE.PlaneGeometry(5.2,.85),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));m.rotation.x=-Math.PI/2;m.position.set(x,.2,z);this.add(m);};
+    const cx=place.x,bz=place.z,bZ=bz-8.1,vZ=bz,dZ=bz+8.1;
+    court(cx,bZ,17,6.6,0x416f9d);const mid=new THREE.Mesh(new THREE.TorusGeometry(1.25,.045,6,36),line);mid.rotation.x=Math.PI/2;mid.position.set(cx,.19,bZ);this.add(mid);
+    for(const side of [-1,1]){this.add(box(.14,1.45,1.45,mat(0xf4f4ee),cx+side*8.05,3,bZ));const rim=new THREE.Mesh(new THREE.TorusGeometry(.42,.05,6,24),mat(0xe7a44e));rim.rotation.x=Math.PI/2;rim.position.set(cx+side*7.35,2.5,bZ);this.add(rim);this.add(box(.12,2.5,.12,post,cx+side*8.55,1.3,bZ));}
+    label("BASKETBALL",cx,bZ);
+    court(cx,vZ,17,6.6,0x4c8b72);this.add(box(16.2,1,.07,netMat,cx,1.1,vZ));for(const side of [-1,1])this.add(box(.12,2,.12,post,cx+side*8.3,1,vZ));label("VOLLEYBALL",cx,vZ);
+    court(cx,dZ,15,6.6,0x6a8d9e);for(const side of [-1,1]){this.add(box(.025,.025,5.8,line,cx+side*4.9,.18,dZ));this.add(box(.1,1.6,.1,post,cx+side*7.55,.8,dZ));}this.add(box(14.6,.85,.055,netMat,cx,1,dZ));label("BADMINTON",cx,dZ);
+  }
   makeHuman(x,z,scale=1,shirt=0x4f789b,gender="male"){
     // Campus students wear varied everyday outfits: tees, polos, hoodies,
     // jeans, skirts, sneakers and backpacks rather than plain stick figures.
@@ -78,6 +89,7 @@ export class World3D {
     const hair=mat([0x211b18,0x30241e,0x17191d][Math.floor(Math.random()*3)]);
     const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.27*scale,.58*scale,4,8),cloth);torso.position.y=1.08*scale;torso.castShadow=true;g.add(torso);
     const head=new THREE.Mesh(new THREE.SphereGeometry(.22*scale,12,10),skin);head.position.y=1.67*scale;head.castShadow=true;g.add(head);
+    g.userData.torso=torso;g.userData.head=head;
     const hairCap=new THREE.Mesh(new THREE.SphereGeometry(gender==="female"?.25*scale:.228*scale,12,8,0,Math.PI*2,0,Math.PI*.55),hair);hairCap.position.y=1.75*scale;g.add(hairCap);
     // Character silhouettes follow the supplied male/female full-body references.
     if(gender==="female"){
@@ -188,12 +200,15 @@ export class World3D {
         for(let row=0;row<2;row++)this.addTo(g,box(.75,.35,place.d-1,mat(row?0x9daab1:0xc5cdd1),-place.w/2-2.55-row*.7,.75+row*.35,0));
         this.add(g);this.clickable.push(g);continue;
       }
+      if(place.id==="sports-courts"){this.makeSportsCourts(place);continue;}
       this.makeBuilding(place);
     }
     // Walkways and landscaping between buildings.
     for(let i=0;i<78;i++){
       const x=-54+((i*37)%108),z=-38+((i*23)%76);
       if(Math.abs(x%22)<7 || Math.abs(z%19)<5) continue;
+      // Keep map trees out of the sports-court pad and player run-off.
+      if(x>=38.5&&x<=59.5&&z>=-27&&z<=-2) continue;
       this.makeTree(x,z,.65+((i%4)*.1));
     }
     // Campus lamps.
@@ -216,7 +231,7 @@ export class World3D {
   resetMapCamera(){this.mapCamera.position.set(103,126,103);this.controls.target.set(0,0,0);this.controls.update();}
   addRoomLight(){this.scene.background.set(0xdce8ef);this.scene.fog=new THREE.Fog(0xdce8ef,35,90);}
   renderInterior(place,gender="male"){
-    this.mode="interior";this.currentPlace=place;this.currentGender=gender;this.root.scale.setScalar(1);this.controls.enabled=false;this.clearRoot();this.markerLayer.innerHTML="";this.addRoomLight();
+    this.mode="interior";this.currentPlace=place;this.currentGender=gender;this.interiorScale=place.type==="hostel"?1.3:1.18;this.root.scale.setScalar(this.interiorScale);this.controls.enabled=false;this.clearRoot();this.markerLayer.innerHTML="";this.addRoomLight();
     if(place.type==="gate"){this.isometricInterior=false;this.renderGateScene();return;}
     const floorColor=place.type==="hostel"?(gender==="female"?0xcdbbd1:0xb9c9d8):0xc8b997;
     const wallColor=place.type==="hostel"?(gender==="female"?0xe8ddeb:0xdce7ef):0xe9e3d5;
@@ -294,16 +309,12 @@ export class World3D {
       const tileLine=mat(0x8f8880);
       for(let x=6.65;x<11.7;x+=1.1){const line=box(.025,.018,4.25,tileLine,x,.095,-3.6);this.add(line);}
       for(let z=-5.45;z<-.95;z+=1.1){const line=box(5.55,.018,.025,tileLine,8.95,.095,z);this.add(line);}
-      // Shower tray and glass screen at the back of the ensuite.
-      addBox(2.25,.12,1.65,0x879da2,10.45,.18,-4.95);
-      addBox(.08,2.35,1.72,0x9dc4d0,9.28,1.18,-4.95);
-      addBox(.12,2.6,.12,0x687c82,10.45,1.3,-5.55);
-      const showerHead=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),mat(0xb8c4c8,.35));showerHead.position.set(11.1,2.35,-5.32);this.add(showerHead);
-      // Toilet pan with a visible cistern.
-      addBox(.8,.82,.9,0xf0eee9,7.1,.42,-4.65);
-      const pan=new THREE.Mesh(new THREE.CylinderGeometry(.39,.34,.18,20),mat(0xf8f7f3));pan.position.set(7.1,.88,-4.65);this.add(pan);
-      addBox(.82,1.15,.22,0xf6f5f1,7.1,.58,-5.38);
-      // Vanity cabinet and inset basin.
+      // Clickable bathtub and toilet fixtures.
+      const bathtub=new THREE.Group();bathtub.position.set(10.45,0,-4.95);bathtub.userData.fixtureAction="shower";
+      bathtub.add(box(2.35,.18,1.78,mat(0x879da2),0,.18,0));bathtub.add(box(2.35,.42,.14,mat(0xe6e9e7),0,.42,-.82));bathtub.add(box(2.35,.42,.14,mat(0xe6e9e7),0,.42,.82));bathtub.add(box(.14,.42,1.78,mat(0xe6e9e7),-1.1,.42,0));bathtub.add(box(.14,.42,1.78,mat(0xe6e9e7),1.1,.42,0));bathtub.add(box(2.08,.035,1.48,new THREE.MeshStandardMaterial({color:0x75b8ce,transparent:true,opacity:.46}),0,.31,0));
+      const showerHead=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),mat(0xb8c4c8,.35));showerHead.position.set(.68,2.35,-.38);bathtub.add(showerHead);bathtub.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.add(bathtub);this.clickables.push(bathtub);
+      const toilet=new THREE.Group();toilet.position.set(7.1,0,-4.65);toilet.userData.fixtureAction="toilet";toilet.add(box(.8,.82,.9,mat(0xf0eee9),0,.42,0));const pan=new THREE.Mesh(new THREE.CylinderGeometry(.39,.34,.18,20),mat(0xf8f7f3));pan.position.set(0,.88,0);toilet.add(pan);toilet.add(box(.82,1.15,.22,mat(0xf6f5f1),0,.58,-.73));toilet.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.add(toilet);this.clickables.push(toilet);
+// Vanity cabinet and inset basin.
       addBox(1.45,.92,.82,0x8c684f,10.65,.48,-2.05);
       addBox(1.52,.12,.9,0xe7e8e4,10.65,1.0,-2.05);
       const basin=new THREE.Mesh(new THREE.CylinderGeometry(.34,.30,.12,24),mat(0x9cbfc7,.32));basin.position.set(10.65,1.09,-2.05);this.add(basin);
@@ -357,7 +368,8 @@ export class World3D {
         guest.userData.arms?.forEach(arm=>{arm.rotation.x=-.9;});
       });
     }else if(type==="sports"){
-      addBox(18,.1,17,0x6b9a6a,0,0,0);for(const x of [-8,8])addBox(.12,.03,15,0xf0f0dd,x,.1,0);addBox(16,.03,.12,0xf0f0dd,0,.1,0);for(let i=0;i<4;i++)this.makeHuman(-6+i*4,-2+(i%2)*4,.85,[0x5c7e9e,0x9a715e,0x6f916b][i%3]);
+      const drawCourt=(name,x,z,w,d,color,net=false)=>{addBox(w,.12,d,color,x,.08,z);const edge=0xf1f1df;addBox(w,.025,.07,edge,x,.17,z-d/2);addBox(w,.025,.07,edge,x,.17,z+d/2);addBox(.07,.025,d,edge,x-w/2,.17,z);addBox(.07,.025,d,edge,x+w/2,.17,z);if(net){addBox(w*.86,.9,.06,0xe4e9eb,x,1.05,z);for(const side of [-1,1])addBox(.1,1.8,.1,0x344651,x+side*(w*.46),.9,z);}const c=document.createElement("canvas");c.width=384;c.height=72;const ctx=c.getContext("2d");ctx.fillStyle="#213447";ctx.fillRect(0,0,384,72);ctx.fillStyle="#fff";ctx.font="bold 36px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(name,192,37);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const sign=new THREE.Mesh(new THREE.PlaneGeometry(3.8,.72),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));sign.rotation.x=-Math.PI/2;sign.position.set(x,.19,z);this.add(sign);};
+      drawCourt("BASKETBALL",0,-7,17,6.4,0x416f9d,false);drawCourt("VOLLEYBALL",0,0,17,6.4,0x4c8b72,true);drawCourt("BADMINTON",0,7,15,6,0x6a8d9e,true);for(let i=0;i<3;i++)this.makeHuman(-6+i*6,9.1,.72,[0x5c7e9e,0x9a715e,0x6f916b][i]);
     }else if(type==="medical"){
       addBox(8,1.4,2,0x91a8b9,0,1.1,-8);addBox(8,.15,2.1,0xe9f1f4,0,1.9,-8);addBox(2.2,3,.18,0x79a6ba,-5,2,-10.8);
       for(const x of [-5,0,5]){addBox(3,.35,5,0xf0f1ef,x,.65,1);addBox(2.7,.22,4.5,0xffffff,x,.95,1);}
@@ -423,11 +435,12 @@ export class World3D {
     if(this.isometricInterior){
       // One consistent diagonal cutaway angle for every enterable building.
       // Dragging vertically adjusts elevation; dragging horizontally rotates.
-      const horizontal=22.5;
-      const height=THREE.MathUtils.clamp(18.5-this.pitch*10,13,25);
+      const scale=this.root.scale.x||1;
+      const horizontal=22.5*scale;
+      const height=THREE.MathUtils.clamp(18.5-this.pitch*10,13,25)*scale;
       const target=this.interiorTarget||{x:0,z:0};
-      this.camera.position.set(target.x+Math.sin(this.yaw)*horizontal,height,target.z+Math.cos(this.yaw)*horizontal);
-      this.camera.lookAt(target.x,0,target.z);return;
+      this.camera.position.set(target.x*scale+Math.sin(this.yaw)*horizontal,height,target.z*scale+Math.cos(this.yaw)*horizontal);
+      this.camera.lookAt(target.x*scale,0,target.z*scale);return;
     }
     if(!this.player)return;
     const distance=7.5, height=3.4;
@@ -482,14 +495,32 @@ export class World3D {
     walkTick();
   }
   showBedRestPose(action,duration,onDone){
-    const g=new THREE.Group();const skin=mat(0x9b684d),shirt=mat(this.currentGender==="female"?0x9b6b91:0x527b9b),trousers=mat(0x34465b),shoe=mat(0x252b30);
-    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.28,.62,4,8),shirt);torso.rotation.z=Math.PI/2;torso.position.set(0,.9,0);g.add(torso);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.23,12,10),skin);head.position.set(-.78,.92,0);g.add(head);
-    const legs=new THREE.Mesh(new THREE.CapsuleGeometry(.14,.55,4,8),trousers);legs.rotation.z=Math.PI/2;legs.position.set(.72,.72,0);g.add(legs);
-    const blanket=new THREE.Mesh(new THREE.BoxGeometry(1.65,.12,.85),mat(action==="sleep"?0x718da7:0x9caaaf));blanket.position.set(.25,1.02,0);g.add(blanket);
-    g.position.set((this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45)).x,.78,(this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45)).z);g.rotation.y=.12;this.add(g);this.bedAvatar=g;
-    const started=performance.now();const tick=()=>{if(!this.bedAvatar)return;const t=(performance.now()-started)/duration;g.position.y=.78+(action==="sleep"?Math.sin(t*Math.PI*8)*.025:0);if(t>=1){this.root.remove(g);this.bedAvatar=null;if(this.player){this.player.visible=true;this.player.position.set((this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45)).x,0,(this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45)).z+2.95);this.updateThirdPersonCamera();}onDone();}else setTimeout(tick,80);};tick();
+    const g=new THREE.Group(),shirt=mat(this.currentGender==="female"?0x9b6b91:0x527b9b),trousers=mat(0x34465b);
+    // Lie head-to-toe down the bed's long axis, with the head on its pillow.
+    const pillow=new THREE.Mesh(new THREE.BoxGeometry(.92,.15,.72),mat(0xf1eee6));pillow.position.set(0,.11,-1.82);g.add(pillow);
+    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.68,4,10),shirt);torso.rotation.x=Math.PI/2;torso.position.set(0,.19,-.55);g.add(torso);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.22,12,10),mat(0x9b684d));head.position.set(0,.23,-1.58);g.add(head);
+    const hair=new THREE.Mesh(new THREE.SphereGeometry(.225,12,8,0,Math.PI*2,0,Math.PI*.58),mat(0x241e1b));hair.position.set(0,.28,-1.61);g.add(hair);
+    for(const side of [-1,1]){const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.5,3,7),shirt);arm.rotation.z=Math.PI/2;arm.position.set(side*.31,.12,-.52);g.add(arm);const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.72,4,8),trousers);leg.rotation.x=Math.PI/2;leg.position.set(side*.12,.12,.82);g.add(leg);}
+    const blanket=new THREE.Mesh(new THREE.BoxGeometry(1.48,.09,1.95),mat(action==="sleep"?0x718da7:0x9caaaf));blanket.position.set(0,.2,.28);g.add(blanket);
+    const bed=this.selectedBedPosition||new THREE.Vector3(-3.35,0,-3.45);g.position.set(bed.x,.48,bed.z);this.add(g);this.bedAvatar=g;
+    const started=performance.now();const tick=()=>{if(this.bedAvatar!==g)return;const t=(performance.now()-started)/duration;g.position.y=.48+(action==="sleep"?Math.sin(t*Math.PI*8)*.012:0);if(t>=1){this.root.remove(g);this.bedAvatar=null;if(this.player){this.player.visible=true;this.player.position.set(bed.x,0,bed.z+2.95);this.updateThirdPersonCamera();}onDone();}else setTimeout(tick,80);};tick();
   }
+  playFixtureAction(action,duration=3000,onDone=()=>{}){
+    if(this.mode!=="interior"||this.currentPlace?.type!=="hostel"||!this.player){onDone();return;}
+    const p=this.player.position,inBathroom=p.x>=6.25&&p.x<=11.5&&p.z>=-5.55&&p.z<=-1.65;
+    this.moveTarget=null;this.moveQueue=[...(inBathroom?[]:[new THREE.Vector3(5.8,0,2.5),new THREE.Vector3(5.8,0,-3.55)]),action==="toilet"?new THREE.Vector3(7.1,0,-3.45):new THREE.Vector3(9.15,0,-3.55)];this.moveTarget=this.moveQueue.shift();this.pendingFixtureAction={action,duration,onDone};
+  }
+  showFixturePose(action,duration,onDone){
+    if(!this.player){onDone();return;}this.player.visible=false;
+    const g=this.makeHuman(0,0,.72,this.currentGender==="female"?0x9b6b91:0x527b9b,this.currentGender);this.npcs=this.npcs.filter(n=>n!==g);g.userData.walk.speed=0;g.userData.walk.radius=0;
+    if(action==="toilet"){g.position.set(7.1,.48,-4.12);g.rotation.y=Math.PI;g.userData.torso.position.y=.68;g.userData.head.position.y=1.10;g.userData.legs?.forEach(leg=>{leg.position.y=.52;leg.rotation.x=-Math.PI/2;});g.userData.arms?.forEach(arm=>{arm.position.y=.86;arm.rotation.x=-.45;});}
+    else{g.position.set(10.45,.28,-4.95);g.userData.arms?.forEach((arm,i)=>{arm.rotation.x=-.35;arm.rotation.z=i===0?.35:-.35;});}
+    this.fixtureAvatar=g;
+    if(action==="shower"){const water=new THREE.Group();for(let i=0;i<10;i++){const drop=new THREE.Mesh(new THREE.SphereGeometry(.045,6,6),new THREE.MeshBasicMaterial({color:0x9adcf0}));drop.position.set(10.05+(i%4)*.22,1.65+((i%3)*.15),-5.18+Math.floor(i/4)*.2);water.add(drop);}this.add(water);this.fixtureWater=water;}
+    const started=performance.now();const tick=()=>{if(this.fixtureAvatar!==g)return;const t=(performance.now()-started)/duration;if(action==="shower"&&this.fixtureWater)this.fixtureWater.children.forEach((drop,i)=>{drop.position.y=1.65+((performance.now()/130+i*.27)%1.1);});if(t>=1){this.root.remove(g);if(this.fixtureWater){this.root.remove(this.fixtureWater);this.fixtureWater=null;}this.fixtureAvatar=null;this.player.visible=true;this.player.position.copy(action==="toilet"?new THREE.Vector3(7.1,0,-3.45):new THREE.Vector3(9.15,0,-3.55));this.updateThirdPersonCamera();onDone();}else setTimeout(tick,80);};tick();
+  }
+
   setTime(hour){
     this.dayHour=hour;const night=hour<6.5||hour>=19.5;const dusk=hour>=17.5&&hour<19.5;const dawn=hour>=5.5&&hour<7.5;
     const ambientLevel=night?.38:dusk?.9:1.65;this.ambient.intensity=ambientLevel;
@@ -531,9 +562,13 @@ export class World3D {
       const click=down;down=null;
       if(click.moved)return;
       const rect=canvas.getBoundingClientRect();pointer.x=((e.clientX-rect.left)/rect.width)*2-1;pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;raycaster.setFromCamera(pointer,this.camera);
-      const bedHits=raycaster.intersectObjects(this.clickables,true);
-      if(bedHits.length){const bed=bedHits[0].object;let root=bed;while(root.parent&&root!==this.root&&!root.userData.isBed)root=root.parent;if(root.userData.isBed){this.selectedBedPosition=new THREE.Vector3(root.position.x,0,root.position.z);this.moveTarget=new THREE.Vector3(root.position.x,0,root.position.z+2.95);this.pendingBed=false;this.onBedSelect?.();return;}}
-      if(this.floorMesh){const hits=raycaster.intersectObject(this.floorMesh,false);if(hits.length){const pt=hits[0].point;const x=THREE.MathUtils.clamp(pt.x,this.currentPlace?.type==="hostel"?-5.8:-9.5,this.currentPlace?.type==="hostel"?11.2:9.5),z=THREE.MathUtils.clamp(pt.z,-9.5,9.5);this.moveTarget=new THREE.Vector3(x,0,z);this.pendingBed=false;}}
+      const fixtureHits=raycaster.intersectObjects(this.clickables,true);
+      if(fixtureHits.length){
+        let target=fixtureHits[0].object;while(target.parent&&target!==this.root&&!target.userData.isBed&&!target.userData.fixtureAction)target=target.parent;
+        if(target.userData.isBed){this.selectedBedPosition=new THREE.Vector3(target.position.x,0,target.position.z);this.moveTarget=new THREE.Vector3(target.position.x,0,target.position.z+2.95);this.moveQueue=[];this.pendingBed=false;this.pendingFixtureAction=null;this.onBedSelect?.();return;}
+        if(target.userData.fixtureAction){this.moveTarget=null;this.moveQueue=[];this.pendingBed=false;this.pendingFixtureAction=null;this.onFixtureSelect?.(target.userData.fixtureAction);return;}
+      }
+      if(this.floorMesh){const hits=raycaster.intersectObject(this.floorMesh,false);if(hits.length){const pt=hits[0].point,scale=this.root.scale.x||1;const x=THREE.MathUtils.clamp(pt.x/scale,this.currentPlace?.type==="hostel"?-5.8:-9.5,this.currentPlace?.type==="hostel"?11.2:9.5),z=THREE.MathUtils.clamp(pt.z/scale,-9.5,9.5);this.moveTarget=new THREE.Vector3(x,0,z);this.moveQueue=[];this.pendingBed=false;this.pendingFixtureAction=null;}}
     });
   }
   move(direction){/* Keyboard movement intentionally disabled: tap the floor to walk. */}
@@ -570,7 +605,7 @@ export class World3D {
       }
       if(this.moveTarget&&this.player&&this.player.visible){
         const delta=this.moveTarget.clone().sub(this.player.position);delta.y=0;const distance=delta.length();
-        if(distance<.18){this.player.position.x=this.moveTarget.x;this.player.position.z=this.moveTarget.z;this.moveTarget=null;if(this.pendingBed){this.pendingBed=false;this.onBedSelect?.();}}
+        if(distance<.18){this.player.position.x=this.moveTarget.x;this.player.position.z=this.moveTarget.z;if(this.moveQueue?.length)this.moveTarget=this.moveQueue.shift();else{this.moveTarget=null;if(this.pendingBed){this.pendingBed=false;this.onBedSelect?.();}if(this.pendingFixtureAction){const pending=this.pendingFixtureAction;this.pendingFixtureAction=null;this.showFixturePose(pending.action,pending.duration,pending.onDone);}}}
         else{delta.normalize().multiplyScalar(Math.min(distance,4.8*dt));const nx=this.player.position.x+delta.x,nz=this.player.position.z+delta.z;if(this.playerCanMoveTo(nx,this.player.position.z))this.player.position.x=nx;if(this.playerCanMoveTo(this.player.position.x,nz))this.player.position.z=nz;this.player.rotation.y=Math.atan2(delta.x,delta.z);this.player.userData.legs?.forEach((leg,i)=>leg.rotation.x=Math.sin(now*.012+i*Math.PI)*.32);this.player.userData.arms?.forEach((arm,i)=>arm.rotation.x=Math.sin(now*.012+i*Math.PI+Math.PI)*.22);}
       }
       this.updateThirdPersonCamera();

@@ -61,3 +61,45 @@ body,.game-screen{background:#34383d;color:#e4e7eb}
 .social-avatar{background:#3b4651}
 .social-profile-info small{color:#a5adb7}
 .presence-dot.online{color:#70c995}
+
+/* BazeTalk: full-height phone messaging experience. */
+.phone-shell{width:min(390px,96vw);height:min(760px,94vh);max-height:94vh}
+.phone-home{min-height:0}
+.phone-app-grid .bazetalk-launch{position:relative}
+.app-unread-badge{position:absolute;top:-5px;right:13px;min-width:17px;height:17px;padding:0 5px;border-radius:10px;background:#d64e52;color:#fff;font-size:9px;font-weight:900;line-height:17px;text-align:center}
+.bazetalk-view{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#f4f7fb;border-radius:20px;color:#24374b}
+.bazetalk-header{display:flex;align-items:center;gap:11px;min-height:62px;padding:10px 13px;background:#243b55;color:#fff}
+.bazetalk-header>button,.bazetalk-chat-header>button{width:34px;height:34px;border-radius:11px;background:#ffffff1c;color:#fff;font-size:24px;line-height:1}
+.bazetalk-header>div{flex:1;min-width:0}
+.bazetalk-header b{display:block;font-size:15px;letter-spacing:.2px}
+.bazetalk-header small{display:block;margin-top:2px;color:#d0dbe5;font-size:9px}
+.bazetalk-header button:last-child{width:auto;padding:0 11px;font-size:11px;font-weight:800}
+.bazetalk-inbox-view,.bazetalk-conversation{display:flex;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+.bazetalk-search-form{display:flex;gap:7px;padding:12px;background:#fff;border-bottom:1px solid #e3eaf1}
+.bazetalk-search-form input,.bazetalk-compose input{min-width:0;flex:1;border:1px solid #dce5ed;border-radius:19px;padding:11px 13px;background:#f6f8fa;color:#26384c;font-size:11px;outline:none}
+.bazetalk-search-form button,.bazetalk-compose button{background:#476b91;color:#fff;border-radius:18px;padding:0 15px;font-size:11px;font-weight:800}
+.bazetalk-search-results{max-height:34%;overflow:auto;background:#fff}
+.bazetalk-section-label{padding:13px 15px 6px;color:#8291a1;font-size:9px;font-weight:900;letter-spacing:1px}
+.bazetalk-contact-list{flex:1;min-height:0;overflow:auto;background:#fff}
+.bazetalk-contact{width:100%;display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #edf1f5;background:#fff;color:#26384c;text-align:left}
+.bazetalk-contact:hover{background:#f4f7fa}
+.bazetalk-avatar{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:50%;background:#e5edf5;font-size:21px}
+.bazetalk-contact-copy{flex:1;min-width:0}
+.bazetalk-contact-copy b,.bazetalk-contact-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bazetalk-contact-copy b{font-size:11px}
+.bazetalk-contact-copy small{margin-top:4px;color:#8492a0;font-size:9px}
+.bazetalk-contact-meta{display:grid;justify-items:end;gap:5px;color:#8795a4;font-size:9px}
+.bazetalk-unread{min-width:17px;height:17px;padding:0 5px;border-radius:10px;background:#d64e52;color:white;font-size:9px;font-weight:900;line-height:17px;text-align:center}
+.bazetalk-empty{padding:18px;color:#8795a4;font-size:11px;text-align:center;line-height:1.5}
+.bazetalk-chat-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid #e4ebf1}
+.bazetalk-chat-header>button{background:#eaf0f5;color:#324d69}
+.bazetalk-chat-header b{display:block;color:#26384c;font-size:11px}
+.bazetalk-chat-header small{display:block;margin-top:3px;color:#8492a0;font-size:9px}
+.bazetalk-messages{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:13px 11px;background:#edf2f7}
+.bazetalk-message{max-width:84%;padding:9px 11px;border-radius:15px;background:#fff;color:#283b50;box-shadow:0 1px 3px #172b4012;align-self:flex-start;overflow-wrap:anywhere}
+.bazetalk-message.outgoing{align-self:flex-end;background:#d7e8f8}
+.bazetalk-message p{margin:0;font-size:11px;line-height:1.45}
+.bazetalk-message time{display:block;margin-top:5px;text-align:right;color:#8291a1;font-size:8px}
+.bazetalk-compose{display:flex;gap:8px;align-items:center;padding:10px;background:#fff;border-top:1px solid #e4ebf1}
+.bazetalk-compose button{width:38px;height:38px;padding:0;border-radius:50%;font-size:17px}
+@media(max-width:600px){.phone-shell{width:min(390px,97vw);height:min(780px,96vh);max-height:96vh}.bazetalk-view{border-radius:18px}}

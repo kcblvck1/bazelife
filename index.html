@@ -125,7 +125,7 @@
             <button data-app="food"><span class="app-icon food-app">🍔</span>Food</button>
             <button data-app="jobs"><span class="app-icon jobs-app">💼</span>Jobs</button>
             <button data-app="activities"><span class="app-icon activity-app">📅</span>Activities</button>
-            <button data-app="social"><span class="app-icon social-app">🫂</span>Social</button>
+            <button data-app="bazetalk" class="bazetalk-launch"><span class="app-icon social-app">💬</span>BazeTalk<span id="bazetalk-app-badge" class="app-unread-badge" hidden>0</span></button>
             <button data-app="profile"><span class="app-icon profile-app">👤</span>Profile</button>
             <button data-app="wallet"><span class="app-icon wallet-app">💳</span>Wallet</button>
             <button data-app="home"><span class="app-icon home-app">🏠</span>My Hostel</button>
@@ -133,6 +133,31 @@
           </div>
           <div class="phone-dock"><span>☎</span><span>🌐</span><span>✉</span><span>⚙</span></div>
         </div>
+
+        <section id="bazetalk-view" class="bazetalk-view" hidden>
+          <header class="bazetalk-header">
+            <button id="bazetalk-back" type="button" aria-label="Back to phone">‹</button>
+            <div><b>BazeTalk</b><small>Student messages</small></div>
+            <button id="bazetalk-search-toggle" type="button">＋ New</button>
+          </header>
+          <div id="bazetalk-inbox-view" class="bazetalk-inbox-view">
+            <form id="bazetalk-search-form" class="bazetalk-search-form" hidden>
+              <input id="bazetalk-search-input" maxlength="18" placeholder="Find a student by username…" autocomplete="off">
+              <button type="submit">Find</button>
+            </form>
+            <div id="bazetalk-search-results" class="bazetalk-search-results"></div>
+            <div class="bazetalk-section-label">RECENT CHATS</div>
+            <div id="bazetalk-contact-list" class="bazetalk-contact-list"><p class="bazetalk-empty">Your messages will appear here.</p></div>
+          </div>
+          <section id="bazetalk-conversation" class="bazetalk-conversation" hidden>
+            <div class="bazetalk-chat-header"><button id="bazetalk-chat-back" type="button">‹</button><div id="bazetalk-chat-contact"></div></div>
+            <div id="direct-message-stream" class="bazetalk-messages"></div>
+            <form id="direct-message-form" class="bazetalk-compose">
+              <input id="direct-message-input" maxlength="500" placeholder="Message…" autocomplete="off" required>
+              <button type="submit" aria-label="Send message">➤</button>
+            </form>
+          </section>
+        </section>
         <div class="phone-bottom"><button id="close-phone">Close phone</button></div>
       </div>
     </div>
