@@ -157,7 +157,7 @@ async function completeOnboarding(){
  try{
   if(onlineProfile?.id){
    await saveOnlineGameSetup(setup);
-   onlineProfile.gameSetup=setup;onlineProfile.onboardingRequired=false;
+   onlineProfile.gameSetup=setup;onlineProfile.appearance={...appearance};onlineProfile.onboardingRequired=false;
   }
   Object.assign(playerState,setup);savePlayer(playerState);
   onboardingSession=null;$("onboarding-screen").hidden=true;
