@@ -125,9 +125,9 @@ export class World3D {
       if(!g.userData.legs)g.userData.legs=[];g.userData.legs.push(legPivot);
     }
     // Backpack straps and body on a random selection of students.
-    if(Math.random()>.43){const bagMat=mat([0x293d55,0x754d3e,0x3f654e,0x6b557c][Math.floor(Math.random()*4)]);const bag=box(.48*scale,.55*scale,.22*scale,bagMat,0,1.1*scale,-.28*scale);g.add(bag);}
+    if(!appearance&&Math.random()>.43){const bagMat=mat([0x293d55,0x754d3e,0x3f654e,0x6b557c][Math.floor(Math.random()*4)]);const bag=box(.48*scale,.55*scale,.22*scale,bagMat,0,1.1*scale,-.28*scale);g.add(bag);}
     // Optional skirt is one of the limited player clothing choices.
-    if(bottomStyle==="skirt"||(!appearance&&Math.random()>.82)){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.24*scale,.34*scale,.35*scale,8),cloth);skirt.position.y=.73*scale;g.add(skirt);}
+    if(bottomStyle==="skirt"||(!appearance&&Math.random()>.82)){const skirt=new THREE.Mesh(new THREE.CylinderGeometry(.24*scale,.34*scale,.35*scale,8),mat(pantsColor));skirt.position.y=.73*scale;g.add(skirt);}
     g.position.set(x,0,z);g.userData.walk={x,z,phase:0,speed:0,radius:0,arms,legs:g.userData.legs};
     this.add(g);this.npcs.push(g);return g;
   }
