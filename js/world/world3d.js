@@ -286,6 +286,27 @@ export class World3D {
       this.add(box(24,3.5,.35,mat(wallColor),0,1.75,-11.8));
       this.add(box(.35,3.5,24,mat(0xd2c6ad),-12,1.75,0));this.add(box(.35,3.5,24,mat(0xc9bda7),12,1.75,0));
       this.interiorTarget={x:0,z:0};
+      if(place.id==="power-house"){
+        const steel=mat(0x9aa8ae,.42);
+        addBox(10,.28,4.2,0x59636a,0,.18,0);
+        addBox(7.2,1.75,2.2,0x168fbd,-1.15,1.15,-.25);
+        addBox(3.1,2.35,2.4,0x168fbd,3.75,1.45,-.25);
+        addBox(2.1,.65,2.0,0x126b91,-1.2,2.35,-.25);
+        for(let i=0;i<8;i++){const c=new THREE.Mesh(new THREE.CylinderGeometry(.19,.19,1.55,12),steel);c.rotation.z=Math.PI/2;c.position.set(-4.1+i*.82,2.25,-1.45);this.add(c);}
+        for(let i=0;i<4;i++){const p=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,5.8,12),steel);p.rotation.z=Math.PI/2;p.position.set(0,3.25,-2.15+i*.35);this.add(p);}
+        addBox(1,1.75,.28,0xe2e6e8,-5,1,2.15);addBox(.72,1.1,.08,0x27333a,-5,1.05,2.31);
+        for(const x of [-4.1,4.7])addBox(.25,.5,3.1,0x343e44,x,.38,.2);
+        const c=document.createElement("canvas");c.width=512;c.height=96;const ctx=c.getContext("2d");ctx.fillStyle="#20394a";ctx.fillRect(0,0,512,96);ctx.fillStyle="#fff";ctx.font="bold 42px Arial";ctx.textAlign="center";ctx.fillText("GENERATOR SET",256,62);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const sign=new THREE.Mesh(new THREE.PlaneGeometry(4.4,.82),new THREE.MeshBasicMaterial({map:t}));sign.position.set(0,3.8,-11.55);this.add(sign);
+      }else if(place.id==="incinerator"){
+        const metal=mat(0x9da8ad,.42);
+        addBox(6.2,2.6,3.2,0x69747a,-1.4,1.55,-1.5);addBox(3.6,1.1,3.25,0x89949a,2.7,2.25,-1.5);
+        addBox(2.2,1.5,.12,0x242d32,-1.4,1.65,.14);addBox(1.55,.85,.08,0xf18b42,-1.4,1.7,.23);
+        addBox(7,.38,1.25,0x303a40,0,.72,3.5);
+        for(let i=0;i<7;i++)addBox(.12,.65,.12,0x69747a,-3+i,1.1,3.5);
+        for(const x of [-2.8,2.6]){const stack=new THREE.Mesh(new THREE.CylinderGeometry(.42,.55,6.5,16),metal);stack.position.set(x,3.25,-4.4);this.add(stack);addBox(1.2,.18,1.2,0x4c585e,x,6.55,-4.4);}
+        for(let i=0;i<5;i++)addBox(.35,.2,.35,0x8f999e,-3.7+i*.65,2.95,-1.5);
+        const c=document.createElement("canvas");c.width=512;c.height=96;const ctx=c.getContext("2d");ctx.fillStyle="#293943";ctx.fillRect(0,0,512,96);ctx.fillStyle="#fff";ctx.font="bold 42px Arial";ctx.textAlign="center";ctx.fillText("INCINERATOR",256,62);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const sign=new THREE.Mesh(new THREE.PlaneGeometry(4.4,.82),new THREE.MeshBasicMaterial({map:t}));sign.position.set(0,3.8,-11.55);this.add(sign);
+      }
     }
     // Windows and baseboards remain on the rear wall of non-hostel interiors.
     if(place.type!=="hostel"){
