@@ -604,12 +604,27 @@ export class World3D {
   }
 
   setTime(hour){
-    this.dayHour=hour;const night=hour<6.5||hour>=19.5;const dusk=hour>=17.5&&hour<19.5;const dawn=hour>=5.5&&hour<7.5;
-    const ambientLevel=night?.38:dusk?.9:1.65;this.ambient.intensity=ambientLevel;
-    this.sun.intensity=night?.08:dusk?1.0:3.1;
-    const sky=night?0x101c32:dusk?0x9b8c91:dawn?0xb8c7d2:0x9cc9dd;
-    this.scene.background.set(sky);this.scene.fog.color.set(sky);
-    for(const l of this.streetLights||[]){l.light.intensity=night?1.8:dusk?.75:0;l.bulb.material.emissiveIntensity=night?1.5:dusk?.55:0;}
+    // The caller supplies Africa/Lagos wall-clock time. Blend lighting smoothly
+    // so sunrise and sunset feel gradual instead of switching at hard cutoffs.
+    this.dayHour=hour;
+    const smooth=(a,b,x)=>{const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+    const sunrise=smooth(5.2,7.6,hour);
+    const sunset=1-smooth(17.4,20.0,hour);
+    const daylight=sunrise*sunset;
+    const dawnGlow=Math.max(0,1-Math.abs(hour-6.4)/1.8);
+    const duskGlow=Math.max(0,1-Math.abs(hour-18.4)/2.0);
+    const twilight=Math.max(dawnGlow,duskGlow);
+    this.ambient.intensity=0.16+daylight*1.48;
+    this.sun.intensity=0.025+daylight*3.05;
+    this.sun.color.set(0xffffff).lerp(new THREE.Color(0xffb978),twilight*0.58);
+    const sky=new THREE.Color(0x101827).lerp(new THREE.Color(0x9cc9dd),daylight);
+    sky.lerp(new THREE.Color(0x9b7781),twilight*0.42);
+    this.scene.background.copy(sky);this.scene.fog.color.copy(sky);
+    const lampLevel=THREE.MathUtils.clamp((0.42-daylight)/0.42,0,1);
+    for(const l of this.streetLights||[]){
+      l.light.intensity=lampLevel*2.1;
+      l.bulb.material.emissiveIntensity=lampLevel*1.7;
+    }
   }
   renderGateScene(){
     this.camera.fov=68;this.camera.updateProjectionMatrix();

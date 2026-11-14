@@ -339,7 +339,12 @@ function startGame(user,playerState){
 async function logout(){if(state)savePlayer(state);if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}if(liveChannel){try{await liveChannel.untrack();}catch{}liveChannel=null;}if(onlineProfile)await logoutOnlineStudent();onlineProfile=null;livePresence={};if(phone)phone.close();$("game-screen").hidden=true;$("auth-screen").hidden=false;$("login-password").value="";switchAuth("login");if(tickTimer)clearInterval(tickTimer);}
 $("logout-button").addEventListener("click",logout);
 
-function updateHUD(){if(!state)return;world?.setTime(state.hour+state.minute/60);$("cash-display").textContent=money(state.cash);$("clock-display").textContent=`${getDayName(state.day)} · ${state.hour%12||12}:${String(state.minute).padStart(2,"0")} ${state.hour>=12?"PM":"AM"}`;$("phone-time").textContent=`${state.hour%12||12}:${String(state.minute).padStart(2,"0")}`;
+function getRealCampusTime(){
+ const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",weekday:"long",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
+ const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+ return {weekday:values.weekday,hour:Number(values.hour),minute:Number(values.minute)};
+}
+function updateHUD(){if(!state)return;const campusTime=getRealCampusTime();const realHour=campusTime.hour+campusTime.minute/60;world?.setTime(realHour);$("cash-display").textContent=money(state.cash);$("clock-display").textContent=`${campusTime.weekday} · ${campusTime.hour%12||12}:${String(campusTime.minute).padStart(2,"0")} ${campusTime.hour>=12?"PM":"AM"}`;$("phone-time").textContent=`${campusTime.hour%12||12}:${String(campusTime.minute).padStart(2,"0")}`;
  for(const key of ["hunger","energy","fun","social","hygiene","bladder"]){const value=clampNeed(state[key]);$(key+"-value").textContent=value+"%";$(key+"-bar").style.width=value+"%";$(key+"-bar").style.background=value<=20?"#c96f70":value<=45?"#d5a34d":"#6e9b79";}
  const rides=state.rides||0;$("goal-progress-bar").style.width=(rides/5*100)+"%";$("goal-progress-label").textContent=`${rides} / 5 ProTaxi rides`;$("goal-text").textContent=state.taxiBonusClaimed?"Daily ProTaxi goal complete — ₦10,000 bonus earned.":"Complete five ProTaxi rides for a ₦10,000 bonus.";
 }
