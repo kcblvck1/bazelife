@@ -133,7 +133,7 @@ export async function logoutOnlineStudent() {
   communityProfile = null;
   communityLocation = "Campus";
   communityStatus = "CLOSED";
-  lastPresencePosition = { x: profile.roomSlot === 0 ? -1.8 : 1.8, z: 2.5, rotation: 0 };
+  lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
   lastPositionBroadcastAt = 0;
   lastPresenceTrackAt = 0;
   if (presenceTrackTimer) clearTimeout(presenceTrackTimer);
