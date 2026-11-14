@@ -431,7 +431,9 @@ function openBedOptions(){
  $("bed-sleep").onclick=()=>{closeModal();runActivity("sleep");};
 }
 function openFixtureOptions(action){
- if(LOCATIONS.find(p=>p.name===state.location)?.type!=="hostel")return;
+ const current=LOCATIONS.find(p=>p.name===state.location);
+ if(current?.type==="restaurant"&&action==="counter"){openFood();return;}
+ if(current?.type!=="hostel")return;
  const toilet=action==="toilet";
  openModal(toilet?"Use the toilet":"Take a shower",toilet
   ?`<p class="empty-note">Walk into the ensuite, sit down and use the toilet for 3 seconds.</p><div class="bed-choice-actions"><button id="fixture-confirm">🚻 Use the toilet <small>3 seconds</small></button></div>`
