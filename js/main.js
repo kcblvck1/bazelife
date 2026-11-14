@@ -7,12 +7,12 @@ import { renderFoodHTML, purchaseFood } from "./systems/restaurants.js";
 import { doTaxiRide, doTutoring, doFreelance } from "./systems/jobs.js";
 import { performActivity } from "./systems/activities.js";
 import { bindPhone } from "./interface/phone.js";
-import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition, saveOnlineGameSetup } from "./core/multiplayer.js";
+import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition, saveOnlineGameSetup, initializeStudentWallet, loadStudentWallet, transferStudentCash, applyOnlineWalletAction, loadWalletTransactions } from "./core/multiplayer.js";
 
 const $=id=>document.getElementById(id);
 let state=null,world=null,phone=null,toastTimer=null,tickTimer=null,onlineProfile=null,liveChannel=null,livePresence={};
 let mapWasOpen=false,presenceTimer=null,directChatTarget=null,bazetalkUnread={},bazetalkLastRead={};
-let onboardingSession=null;
+let onboardingSession=null,amnestyAllowanceClaimInFlight=false,amnestyAllowanceClaimedDay=null;
 
 const BAZE_UNIVERSITY_PROGRAMMES=[
  "B.Eng. Civil Engineering","B.Eng. Computer Engineering","B.Eng. Electrical & Electronics Engineering",
@@ -190,6 +190,13 @@ async function completeOnboarding(){
    onlineProfile.gameSetup=setup;onlineProfile.appearance={...appearance};onlineProfile.onboardingRequired=false;
   }
   Object.assign(playerState,setup);
+  if(onlineProfile?.id){
+   const wallet=await initializeStudentWallet(background);
+   playerState.cash=Number(wallet.balance)||initialCash;
+   playerState.rides=Number(wallet.taxi_rides)||0;
+   playerState.taxiBonusClaimed=Boolean(wallet.taxi_bonus_claimed);
+   if(wallet.next_allowance_day)playerState.nextAmnestyAllowanceDay=Number(wallet.next_allowance_day);
+  }
   delete playerState.onboardingResults;delete playerState.onboardingStage;savePlayer(playerState);
   onboardingSession=null;$("onboarding-screen").hidden=true;
   startGame(user,playerState);
@@ -293,8 +300,14 @@ async function handleLogin(event){
    // Accounts created before the onboarding feature keep their existing game.
    if(saved&&saved.onboardingComplete===undefined&&!user.onboardingRequired&&!user.gameSetup)state.onboardingComplete=true;
    if(!user.onboardingRequired&&!user.gameSetup&&!saved)state.onboardingComplete=true;
-   if(state.onboardingComplete){startGame(user,state);}
-   else{beginOnboarding(user,state);}
+   if(state.onboardingComplete){
+    const wallet=await initializeStudentWallet(state.studentBackground||"middle");
+    state.cash=Number(wallet.balance)||0;
+    state.rides=Number(wallet.taxi_rides)||0;
+    state.taxiBonusClaimed=Boolean(wallet.taxi_bonus_claimed);
+    if(wallet.next_allowance_day)state.nextAmnestyAllowanceDay=Number(wallet.next_allowance_day);
+    startGame(user,state);
+   } else{beginOnboarding(user,state);}
    return;
   }catch(error){authMessage(error.message||"Online login failed.");return;}
  }
@@ -387,12 +400,28 @@ function advanceTime(minutes){
  while(total>=1440){
   total-=1440;state.day++;state.rides=0;state.taxiBonusClaimed=false;
   if(state.studentBackground==="amnesty"&&state.nextAmnestyAllowanceDay&&state.day>=state.nextAmnestyAllowanceDay){
-   state.cash=(Number(state.cash)||0)+300000;
-   state.nextAmnestyAllowanceDay+=90;
-   toast("Amnesty allowance received: ₦300,000 from Baze University.");
+   if(onlineProfile?.id){
+    claimOnlineAmnestyAllowance().catch(error=>toast(error.message||"Your school allowance could not be processed."));
+   }else{
+    state.cash=(Number(state.cash)||0)+300000;
+    state.nextAmnestyAllowanceDay+=90;
+    toast("Amnesty allowance received: ₦300,000 from Baze University.");
+   }
   }
  }
  state.hour=Math.floor(total/60);state.minute=total%60;decayNeeds(state,minutes);
+}
+async function claimOnlineAmnestyAllowance(){
+ if(!onlineProfile?.id||state.studentBackground!=="amnesty"||amnestyAllowanceClaimInFlight||amnestyAllowanceClaimedDay===state.day)return;
+ amnestyAllowanceClaimInFlight=true;amnestyAllowanceClaimedDay=state.day;
+ try{
+  const wallet=await applyOnlineWalletAction("amnesty_allowance",state.day);
+  state.cash=Number(wallet.balance)||0;
+  state.nextAmnestyAllowanceDay=Number(wallet.next_allowance_day)||state.nextAmnestyAllowanceDay+90;
+  updateHUD();savePlayer(state);
+  toast("Amnesty allowance received: ₦300,000 from Baze University.");
+ }catch(error){toast(error.message||"Your school allowance could not be processed. Sign in again if the problem continues.");}
+ finally{amnestyAllowanceClaimInFlight=false;}
 }
 function gameTick(){if(!state||$("game-screen").hidden)return;advanceTime(1);updateHUD();savePlayer(state);}
 function openBedOptions(){
@@ -447,7 +476,7 @@ function buildStudentTimetable(course){
 }
 function renderStudentTimetable(){
  const timetable=buildStudentTimetable(state?.course||"Your programme");
- return `<div class="timetable-intro"><span class="timetable-course">${escapeHTML(state?.course||"Course not selected")}</span><p>Illustrative BAZE LIFE class schedule · Monday to Friday</p></div>${timetable.map(day=>`<section class="timetable-day"><h3>${day.day}</h3>${day.classes.map(item=>`<article class="timetable-class"><div class="timetable-time">${item.time}</div><div class="timetable-class-copy"><b>${item.type}</b><span>${escapeHTML(item.title)}</span><small>📍 ${item.venue}</small></div></article>`).join("")}</section>`).join("")}<p class="timetable-note">This is a fictional in-game timetable for BAZE LIFE, not an official Baze University timetable. Your class schedule is for role-play and campus activities.</p>`;
+ return `<div class="timetable-intro"><b class="timetable-course">The offered course</b><p>${escapeHTML(state?.course||"Course not selected")}</p></div>${timetable.map(day=>`<section class="timetable-day"><h3>${day.day}</h3>${day.classes.map(item=>`<article class="timetable-class"><div class="timetable-time">${item.time}</div><div class="timetable-class-copy"><b>${item.type}</b><span>${escapeHTML(item.title)}</span><small>📍 ${item.venue}</small></div></article>`).join("")}</section>`).join("")}`;
 }
 function openStudentTimetable(){
  openModal("My class timetable",renderStudentTimetable());
@@ -462,10 +491,30 @@ function openFood(){
  const now=state.hour*60+state.minute;
  if(now<480||now>1230){toast(`${restaurant} is closed. Food places open at 8:00 AM and close at 8:30 PM.`);return;}
  openModal(`${restaurant} · Menu`,renderFoodHTML(state,restaurant));
- $("modal-content").querySelectorAll("[data-buy-food]").forEach(btn=>btn.addEventListener("click",()=>{const r=purchaseFood(state,{restaurant:btn.dataset.restaurant,price:Number(btn.dataset.price),gain:Number(btn.dataset.gain),location:state.location});if(!r.ok){toast(r.message);return;}advanceTime(10);setActivity("Meal purchased",`${btn.dataset.name} from ${btn.dataset.restaurant}.`);closeModal();toast(`${btn.dataset.name} purchased.`);updateHUD();savePlayer(state);}));
+ $("modal-content").querySelectorAll("[data-buy-food]").forEach(btn=>btn.addEventListener("click",async()=>{
+  const candidate={...state},r=purchaseFood(candidate,{restaurant:btn.dataset.restaurant,price:Number(btn.dataset.price),gain:Number(btn.dataset.gain),location:state.location});
+  if(!r.ok){toast(r.message);return;}
+  if(onlineProfile?.id){
+   try{const wallet=await applyOnlineWalletAction("food_purchase",state.day,btn.dataset.name,btn.dataset.restaurant);candidate.cash=Number(wallet.balance)||0;}
+   catch(error){toast(error.message||"Your wallet could not be updated. No purchase was made.");return;}
+  }
+  Object.assign(state,candidate);advanceTime(10);setActivity("Meal purchased",`${btn.dataset.name} from ${btn.dataset.restaurant}.`);closeModal();toast(`${btn.dataset.name} purchased.`);updateHUD();savePlayer(state);
+ }));
 }
-function openJobs(){openModal("Jobs & side hustles",`<div class="modal-row"><div><b>🚕 ProTaxi driver</b><small>₦3,000 per ride · Five rides per day · Current: ${state.rides}/5</small></div><button id="job-taxi">Work</button></div><div class="modal-row"><div><b>📚 Tutoring</b><small>Earn ₦2,500 · Costs 15 energy</small></div><button id="job-tutor">Work</button></div><div class="modal-row"><div><b>💻 Freelancing</b><small>Earn ₦4,000 · Costs 20 energy</small></div><button id="job-freelance">Work</button></div>`);$("job-taxi").onclick=()=>runJob(doTaxiRide,30);$("job-tutor").onclick=()=>runJob(doTutoring,60);$("job-freelance").onclick=()=>runJob(doFreelance,90);}
-function runJob(fn,minutes){const result=fn(state);if(!result.ok){toast(result.message);return;}advanceTime(minutes);closeModal();toast(result.message);setActivity("Work completed",result.message);updateHUD();savePlayer(state);}
+function openJobs(){openModal("Jobs & side hustles",`<div class="modal-row"><div><b>🚕 ProTaxi driver</b><small>₦3,000 per ride · Five rides per day · Current: ${state.rides}/5</small></div><button id="job-taxi">Work</button></div><div class="modal-row"><div><b>📚 Tutoring</b><small>Earn ₦2,500 · Costs 15 energy</small></div><button id="job-tutor">Work</button></div><div class="modal-row"><div><b>💻 Freelancing</b><small>Earn ₦4,000 · Costs 20 energy</small></div><button id="job-freelance">Work</button></div>`);$("job-taxi").onclick=()=>runJob(doTaxiRide,30,"taxi_ride");$("job-tutor").onclick=()=>runJob(doTutoring,60,"tutoring");$("job-freelance").onclick=()=>runJob(doFreelance,90,"freelance");}
+async function runJob(fn,minutes,action){
+ const candidate={...state},result=fn(candidate);
+ if(!result.ok){toast(result.message);return;}
+ if(onlineProfile?.id){
+  try{
+   const wallet=await applyOnlineWalletAction(action,state.day);
+   candidate.cash=Number(wallet.balance)||0;
+   candidate.rides=Number(wallet.taxi_rides)||0;
+   candidate.taxiBonusClaimed=Boolean(wallet.taxi_bonus_claimed);
+  }catch(error){toast(error.message||"Your wallet could not be updated. No money was added.");return;}
+ }
+ Object.assign(state,candidate);advanceTime(minutes);closeModal();toast(result.message);setActivity("Work completed",result.message);updateHUD();savePlayer(state);
+}
 function openActivities(){openModal("Activities",`<section class="activities-timetable"><div class="activities-timetable-heading"><div><b>📅 My class timetable</b><small>${escapeHTML(state?.course||"Course not selected")} · 5 study days</small></div><button type="button" id="open-full-timetable">View timetable</button></div><div class="activities-next-class"><b>Weekly schedule</b><span>2 sessions per weekday · 9 AM and 1 PM</span></div></section><div class="modal-row"><div><b>📖 Study</b><small>Study in a class block or the Library</small></div><button data-action="study">Study</button></div><div class="modal-row"><div><b>🫂 Socialise</b><small>Improve social and fun</small></div><button data-action="social">Socialise</button></div><div class="modal-row"><div><b>🎉 Have fun</b><small>Improve fun; costs energy</small></div><button data-action="fun">Have fun</button></div><div class="modal-row"><div><b>😴 Rest</b><small>Recover 25 energy</small></div><button data-action="rest">Rest</button></div><div class="modal-row"><div><b>🏃 Exercise</b><small>Best done at Football Stadium</small></div><button data-action="exercise">Exercise</button></div>`);$("open-full-timetable").onclick=openStudentTimetable;$("modal-content").querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>{closeModal();runActivity(b.dataset.action);});}
 function refreshRemotePlayers(){
  if(!world||world.mode!=="interior"||!state||!onlineProfile?.id)return;
@@ -688,16 +737,24 @@ async function openBazeTalkConversation(user){
  $("bazetalk-inbox-view").hidden=true;$("bazetalk-conversation").hidden=false;
  $("bazetalk-chat-contact").innerHTML=`<b>${escapeHTML(user.display_name||user.username)}</b><small>@${escapeHTML(user.username)}</small>`;
  await refreshBazeTalkConversation(user,false);
+ const sendMoneyButton=$("bazetalk-send-money");
+ if(sendMoneyButton)sendMoneyButton.onclick=()=>openSendMoneyDialog(user);
  $("direct-message-input").focus();
 }
 async function refreshBazeTalkConversation(user,keepScroll=false){
  const stream=$("direct-message-stream");if(!stream||!onlineProfile?.id||!user?.id)return;
  const wasAtBottom=stream.scrollHeight-stream.scrollTop-stream.clientHeight<50;
- const messages=await loadDirectMessages(onlineProfile.id,user.id);
- stream.innerHTML=messages.map(message=>{
-   const outgoing=message.sender_id===onlineProfile.id;
-   const time=new Date(message.created_at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-   return `<article class="bazetalk-message ${outgoing?"outgoing":""}"><p>${escapeHTML(message.body||"")}</p><time>${time}</time></article>`;
+ const [messages,transfers,wallet]=await Promise.all([loadDirectMessages(onlineProfile.id,user.id),loadWalletTransactions(user.id),loadStudentWallet()]);
+ state.cash=Number(wallet.balance)||0;updateHUD();savePlayer(state);
+ const events=[...messages.map(data=>({kind:"message",created_at:data.created_at,data})),...transfers.map(data=>({kind:"transfer",created_at:data.created_at,data}))].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
+ stream.innerHTML=events.map(event=>{
+   const time=new Date(event.created_at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+   if(event.kind==="transfer"){
+    const outgoing=event.data.sender_id===onlineProfile.id;
+    return `<article class="bazetalk-transfer ${outgoing?"outgoing":""}"><b>${outgoing?"↗ Money sent":"↙ Money received"}</b><strong>${money(event.data.amount)}</strong><time>${time}</time></article>`;
+   }
+   const outgoing=event.data.sender_id===onlineProfile.id;
+   return `<article class="bazetalk-message ${outgoing?"outgoing":""}"><p>${escapeHTML(event.data.body||"")}</p><time>${time}</time></article>`;
  }).join("")||`<p class="bazetalk-empty">No messages yet. Say hello to @${escapeHTML(user.username)}.</p>`;
  if(!keepScroll||wasAtBottom)stream.scrollTop=stream.scrollHeight;
 }
@@ -728,9 +785,22 @@ function openProfile(){
  const allowance=state.studentBackground==="amnesty"?`<div class="modal-row"><div><b>School allowance</b><small>₦300,000 every 90 in-game days · Next payment: Day ${state.nextAmnestyAllowanceDay}</small></div><strong>₦300k</strong></div>`:"";
  openModal("Student profile",`<div class="modal-row"><div><b>${state.name}</b><small>@${state.username} · ${state.gender} student</small></div><strong>${state.gender==="female"?"👩🏽‍🎓":"👨🏽‍🎓"}</strong></div><div class="modal-row"><div><b>Course</b><small>${state.course||"Not selected"}</small></div><strong>🎓</strong></div><div class="modal-row"><div><b>University level</b><small>${state.level||"Not selected"}</small></div><strong>${state.level||"—"}</strong></div><div class="modal-row"><div><b>Student background</b><small>${backgroundLabel}</small></div><strong>${money(state.cash)}</strong></div>${allowance}<div class="modal-row"><div><b>Academic progress</b><small>${state.studyPoints} study points</small></div><strong>Rank ${1+Math.floor(state.studyPoints/10)}</strong></div><div class="modal-row"><div><b>Reputation</b><small>Baze points</small></div><strong>${state.reputation}</strong></div><div class="modal-row"><div><b>Home</b><small>Your assigned accommodation</small></div><strong>${state.gender==="female"?"Female":"Male"} Hostel</strong></div>`);
 }
-function openWallet(){
+async function openWallet(){
  const note=state.studentBackground==="nepo"?"You began as a Nepo Baby with ₦500,000.":state.studentBackground==="amnesty"?"You began with ₦100,000. Baze University pays you ₦300,000 every 90 in-game days.":"You began as a Middle Class student with ₦100,000.";
- openModal("Wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">${note} Earn extra money through ProTaxi, tutoring and freelancing.</p>`);
+ if(onlineProfile?.id){try{const wallet=await loadStudentWallet();state.cash=Number(wallet.balance)||0;updateHUD();savePlayer(state);}catch(error){toast(error.message||"Could not refresh your wallet.");}}
+ openModal("Wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">${note} Earn extra money through ProTaxi, tutoring and freelancing. Your online wallet balance is shared across devices.</p>`);
+}
+function openSendMoneyDialog(user){
+ openModal("Send Baze cash",`<p class="empty-note">Send money securely to <b>${escapeHTML(user.display_name||user.username)}</b> (@${escapeHTML(user.username)}).</p><div class="bazetalk-wallet-balance">Available balance <b>${money(state.cash)}</b></div><form id="bazetalk-transfer-form" class="bazetalk-transfer-form"><label for="bazetalk-transfer-amount">Amount (₦)</label><input id="bazetalk-transfer-amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" placeholder="Enter amount" required><button class="primary" type="submit">Confirm transfer</button></form><p id="bazetalk-transfer-status" class="empty-note" role="status"></p>`);
+ const form=$("bazetalk-transfer-form");
+ form.onsubmit=async event=>{
+  event.preventDefault();const input=$("bazetalk-transfer-amount"),button=form.querySelector("button"),status=$("bazetalk-transfer-status"),amount=Number(input.value);
+  if(!Number.isSafeInteger(amount)||amount<1){status.textContent="Enter a valid whole-number amount.";return;}
+  if(amount>Number(state.cash||0)){status.textContent="You do not have enough money.";return;}
+  button.disabled=true;status.textContent="Processing transfer…";
+  try{const result=await transferStudentCash(user.id,amount);state.cash=Number(result.sender_balance)||0;updateHUD();savePlayer(state);closeModal();await refreshBazeTalkConversation(user,true);toast(`You sent ${money(amount)} to @${user.username}.`);}
+  catch(error){status.textContent=error.message||"Transfer failed. Your wallet was not changed.";button.disabled=false;}
+ };
 }
 function handlePhoneApp(app){if(app==="bazetalk"){openBazeTalk();return;}phone.close();switch(app){case"map":openMap();break;case"food":openFood();break;case"jobs":openJobs();break;case"activities":openActivities();break;case"social":openSocial();break;case"profile":openProfile();break;case"wallet":openWallet();break;case"home":enterLocation(LOCATIONS.find(p=>p.id===getHostelForGender(state.gender)));break;case"save":savePlayer(state);toast("Game saved on this device.");break;}}
 
