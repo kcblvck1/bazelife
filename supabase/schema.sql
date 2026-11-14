@@ -167,3 +167,60 @@ begin
   end if;
 end;
 $$;
+
+
+-- Stable hostel room allocation: each room has exactly two real-player slots.
+create table if not exists public.hostel_room_assignments (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  gender text not null check (gender in ('male','female')),
+  room_number integer not null check (room_number between 1 and 500),
+  room_slot integer not null check (room_slot in (0,1)),
+  assigned_at timestamptz not null default now(),
+  unique (gender, room_number, room_slot)
+);
+alter table public.hostel_room_assignments enable row level security;
+drop policy if exists "Students can read their own hostel room assignment" on public.hostel_room_assignments;
+create policy "Students can read their own hostel room assignment"
+  on public.hostel_room_assignments for select to authenticated
+  using (user_id = auth.uid());
+
+create or replace function public.assign_hostel_room(p_gender text default 'male')
+returns table(room_number integer, room_slot integer)
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_gender text := case when p_gender = 'female' then 'female' else 'male' end;
+  v_room integer;
+  v_slot integer;
+begin
+  if v_user is null then raise exception 'Sign in to receive a hostel room.'; end if;
+  perform pg_advisory_xact_lock(hashtext('hostel-room-' || v_gender));
+  select a.room_number, a.room_slot into v_room, v_slot
+    from public.hostel_room_assignments a where a.user_id = v_user;
+  if found then
+    if (select a.gender from public.hostel_room_assignments a where a.user_id = v_user) <> v_gender then
+      raise exception 'Your assigned hostel gender does not match your student profile.';
+    end if;
+    return query select v_room, v_slot;
+    return;
+  end if;
+  select candidate.room_number, candidate.room_slot into v_room, v_slot
+  from (
+    select rooms.room_number, slots.room_slot
+    from generate_series(1,500) as rooms(room_number)
+    cross join generate_series(0,1) as slots(room_slot)
+    where not exists (
+      select 1 from public.hostel_room_assignments a
+      where a.gender = v_gender and a.room_number = rooms.room_number and a.room_slot = slots.room_slot
+    )
+    order by rooms.room_number, slots.room_slot limit 1
+  ) candidate;
+  if v_room is null then raise exception 'No hostel rooms are currently available.'; end if;
+  insert into public.hostel_room_assignments(user_id,gender,room_number,room_slot)
+    values(v_user,v_gender,v_room,v_slot);
+  return query select v_room,v_slot;
+end;
+$$;
+revoke all on function public.assign_hostel_room(text) from public, anon;
+grant execute on function public.assign_hostel_room(text) to authenticated;
