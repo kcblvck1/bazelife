@@ -818,8 +818,13 @@ function openSendMoneyDialog(user){
   if(!Number.isSafeInteger(amount)||amount<1){status.textContent="Enter a valid whole-number amount.";return;}
   if(amount>Number(state.cash||0)){status.textContent="You do not have enough Baze cash.";return;}
   button.disabled=true;status.textContent="Processing transfer…";
-  try{const result=await transferStudentCash(user.id,amount);state.cash=Number(result.sender_balance)||0;updateHUD();savePlayer(state);closeModal();await refreshBazeTalkConversation(user,true);toast(`You sent ${money(amount)} Baze cash to @${user.username}.`);}
-  catch(error){status.textContent=error.message||"Transfer failed. Your wallet was not changed.";button.disabled=false;}
+  let result;
+  try{result=await transferStudentCash(user.id,amount);}
+  catch(error){status.textContent=error.message||"Baze cash transfer failed. Your balance was not changed.";button.disabled=false;return;}
+  state.cash=Number(result.sender_balance)||0;updateHUD();savePlayer(state);closeModal();
+  toast(`You sent ${money(amount)} Baze cash to @${user.username}.`);
+  try{await refreshBazeTalkConversation(user,true);}
+  catch(error){console.warn("Baze cash was sent, but BazeTalk history could not refresh.",error);toast("Baze cash was sent. Reopen this chat to refresh the transfer history.");}
  };
 }
 function handlePhoneApp(app){if(app==="bazetalk"){openBazeTalk();return;}phone.close();switch(app){case"map":openMap();break;case"food":openFood();break;case"jobs":openJobs();break;case"activities":openActivities();break;case"social":openSocial();break;case"profile":openProfile();break;case"wallet":openWallet();break;case"home":enterLocation(LOCATIONS.find(p=>p.id===getHostelForGender(state.gender)));break;case"save":savePlayer(state);toast("Game saved on this device.");break;}}
