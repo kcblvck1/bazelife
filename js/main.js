@@ -12,7 +12,7 @@ import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnline
 const $=id=>document.getElementById(id);
 let state=null,world=null,phone=null,toastTimer=null,tickTimer=null,onlineProfile=null,liveChannel=null,livePresence={};
 let mapWasOpen=false,presenceTimer=null,directChatTarget=null,bazetalkUnread={},bazetalkLastRead={};
-let onboardingSession=null;
+let onboardingSession=null,amnestyAllowanceClaimInFlight=false,amnestyAllowanceClaimedDay=null;
 
 const BAZE_UNIVERSITY_PROGRAMMES=[
  "B.Eng. Civil Engineering","B.Eng. Computer Engineering","B.Eng. Electrical & Electronics Engineering",
@@ -412,12 +412,16 @@ function advanceTime(minutes){
  state.hour=Math.floor(total/60);state.minute=total%60;decayNeeds(state,minutes);
 }
 async function claimOnlineAmnestyAllowance(){
- if(!onlineProfile?.id||state.studentBackground!=="amnesty")return;
- const wallet=await applyOnlineWalletAction("amnesty_allowance",state.day);
- state.cash=Number(wallet.balance)||0;
- state.nextAmnestyAllowanceDay=Number(wallet.next_allowance_day)||state.nextAmnestyAllowanceDay+90;
- updateHUD();savePlayer(state);
- toast("Amnesty allowance received: ₦300,000 from Baze University.");
+ if(!onlineProfile?.id||state.studentBackground!=="amnesty"||amnestyAllowanceClaimInFlight||amnestyAllowanceClaimedDay===state.day)return;
+ amnestyAllowanceClaimInFlight=true;amnestyAllowanceClaimedDay=state.day;
+ try{
+  const wallet=await applyOnlineWalletAction("amnesty_allowance",state.day);
+  state.cash=Number(wallet.balance)||0;
+  state.nextAmnestyAllowanceDay=Number(wallet.next_allowance_day)||state.nextAmnestyAllowanceDay+90;
+  updateHUD();savePlayer(state);
+  toast("Amnesty allowance received: ₦300,000 from Baze University.");
+ }catch(error){toast(error.message||"Your school allowance could not be processed. Sign in again if the problem continues.");}
+ finally{amnestyAllowanceClaimInFlight=false;}
 }
 function gameTick(){if(!state||$("game-screen").hidden)return;advanceTime(1);updateHUD();savePlayer(state);}
 function openBedOptions(){
