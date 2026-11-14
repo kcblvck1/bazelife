@@ -247,8 +247,15 @@ export class World3D {
   }
   resetMapCamera(){this.mapCamera.position.set(103,126,103);this.controls.target.set(0,0,0);this.controls.update();}
   addRoomLight(){this.scene.background.set(0xdce8ef);this.scene.fog=new THREE.Fog(0xdce8ef,35,90);}
+  setHostelAssignment(roomNumber,roomSlot){
+    this.hostelRoomNumber=Number(roomNumber)||1;this.hostelRoomSlot=Number(roomSlot)===1?1:0;
+    if(this.mode==="interior"&&this.currentPlace?.type==="hostel"&&this.player){
+      this.player.position.set(this.hostelRoomSlot===0?-1.8:1.8,0,2.5);
+      this.updateThirdPersonCamera();
+    }
+  }
   renderInterior(place,gender="male",appearance=null){
-    this.mode="interior";this.currentPlace=place;this.currentGender=gender;this.avatarAppearance=appearance||this.avatarAppearance||null;this.interiorScale=place.type==="hostel"?1.3:1.18;this.root.scale.setScalar(this.interiorScale);this.controls.enabled=false;this.clearRoot();this.markerLayer.innerHTML="";this.addRoomLight();
+    this.mode="interior";this.currentPlace=place;this.currentGender=gender;this.avatarAppearance=appearance||this.avatarAppearance||null;this.interiorScale=place.type==="hostel"?1.3:1.18;this.currentRoomNumber=this.hostelRoomNumber||1;this.root.scale.setScalar(this.interiorScale);this.controls.enabled=false;this.clearRoot();this.markerLayer.innerHTML="";this.addRoomLight();
     if(place.type==="gate"){this.isometricInterior=false;this.renderGateScene();return;}
     const floorColor=place.type==="hostel"?(gender==="female"?0xcdbbd1:0xb9c9d8):0xc8b997;
     const wallColor=place.type==="hostel"?(gender==="female"?0xe8ddeb:0xdce7ef):0xe9e3d5;
@@ -438,7 +445,7 @@ export class World3D {
     this.player=this.makeHuman(0,2.5,.98,gender==="female"?0x9a658e:0x4d7190,gender,this.avatarAppearance);
     this.npcs=this.npcs.filter(n=>n!==this.player);
     this.player.userData.isPlayer=true;
-    this.player.position.set(0,0,2.5);
+    this.player.position.set(place.type==="hostel"?(this.hostelRoomSlot===1?1.8:-1.8):0,0,2.5);
     this.player.userData.walk.legs.forEach(leg=>leg.rotation.x=0);
     this.isometricInterior=true;this.yaw=Math.PI/4;this.pitch=-.12;
     this.camera.fov=44;this.camera.updateProjectionMatrix();
@@ -458,6 +465,7 @@ export class World3D {
      const active=new Set();
      for(const p of players){
        if(!p?.user_id||p.user_id===this.localUserId||p.location!==this.currentPlace.name)continue;
+       if(this.currentPlace.type==="hostel"&&Number(p.room_number)!==Number(this.currentRoomNumber))continue;
        active.add(p.user_id);
        let avatar=this.remotePlayers.get(p.user_id);
        if(!avatar){
@@ -466,7 +474,7 @@ export class World3D {
          avatar.add(this.makeRemoteNameplate("@"+(p.username||"student")));
          this.remotePlayers.set(p.user_id,avatar);
        }
-       const x=Number.isFinite(Number(p.x))?Number(p.x):0;
+       const x=Number.isFinite(Number(p.x))?Number(p.x):(Number(p.room_slot)===1?1.8:-1.8);
        const z=Number.isFinite(Number(p.z))?Number(p.z):2.5;
        const isHostel=this.currentPlace.type==="hostel";
        const target=new THREE.Vector3(
