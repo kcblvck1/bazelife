@@ -274,6 +274,8 @@ async function trackCommunityPresence() {
     display_name: communityProfile.name,
     gender: communityProfile.gender,
     appearance: communityProfile.appearance || null,
+    room_number: communityProfile.roomNumber || null,
+    room_slot: communityProfile.roomSlot ?? null,
     location: communityLocation,
     x: lastPresencePosition.x,
     z: lastPresencePosition.z,
@@ -302,6 +304,8 @@ export async function publishPlayerPosition(profile, location, position) {
     display_name: profile.name,
     gender: profile.gender,
     appearance: profile.appearance || null,
+    room_number: profile.roomNumber || null,
+    room_slot: profile.roomSlot ?? null,
     location,
     x: Number.isFinite(Number(position?.x)) ? Number(position.x) : 0,
     z: Number.isFinite(Number(position?.z)) ? Number(position.z) : 2.5,
@@ -344,7 +348,7 @@ export async function subscribeToCampus(profile, location, onPresence, onMessage
   communityProfile = profile;
   communityLocation = location;
   communityStatus = "CONNECTING";
-  lastPresencePosition = { x: 0, z: 2.5, rotation: 0 };
+  lastPresencePosition = { x: profile.roomSlot === 0 ? -1.8 : 1.8, z: 2.5, rotation: 0 };
   lastPositionBroadcastAt = 0;
   lastPresenceTrackAt = 0;
   if (presenceTrackTimer) clearTimeout(presenceTrackTimer);
@@ -487,4 +491,14 @@ export async function loadWalletTransactions(peerId, limit = 30) {
     .order("created_at", { ascending: true }).limit(limit);
   if (error) throw error;
   return data || [];
+}
+
+
+export async function assignHostelRoom(gender) {
+  if (!client) throw new Error("Hostel room assignment requires an online student account.");
+  const { data, error } = await client.rpc("assign_hostel_room", { p_gender: gender === "female" ? "female" : "male" });
+  if (error) throw error;
+  const assignment = Array.isArray(data) ? data[0] : data;
+  if (!assignment || !Number.isInteger(Number(assignment.room_number)) || !Number.isInteger(Number(assignment.room_slot))) throw new Error("The hostel room assignment could not be loaded.");
+  return { roomNumber: Number(assignment.room_number), roomSlot: Number(assignment.room_slot) };
 }
