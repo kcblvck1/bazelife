@@ -527,11 +527,9 @@ function refreshRemotePlayers(){
 }
 async function connectCampusCommunity(){
  try{
-  if(LOCATIONS.find(p=>p.name===state.location)?.type==="hostel"){
-   const assignment=await assignHostelRoom(state.gender);
-   onlineProfile.roomNumber=assignment.roomNumber;onlineProfile.roomSlot=assignment.roomSlot;
-   world?.setHostelAssignment(assignment.roomNumber,assignment.roomSlot);
-  }
+  const assignment=await assignHostelRoom(state.gender);
+  onlineProfile.roomNumber=assignment.roomNumber;onlineProfile.roomSlot=assignment.roomSlot;
+  world?.setHostelAssignment(assignment.roomNumber,assignment.roomSlot);
   liveChannel=await subscribeToCampus(onlineProfile,state.location,presence=>{
    livePresence=presence;
    refreshRemotePlayers();
