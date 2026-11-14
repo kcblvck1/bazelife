@@ -400,12 +400,24 @@ function advanceTime(minutes){
  while(total>=1440){
   total-=1440;state.day++;state.rides=0;state.taxiBonusClaimed=false;
   if(state.studentBackground==="amnesty"&&state.nextAmnestyAllowanceDay&&state.day>=state.nextAmnestyAllowanceDay){
-   state.cash=(Number(state.cash)||0)+300000;
-   state.nextAmnestyAllowanceDay+=90;
-   toast("Amnesty allowance received: ₦300,000 from Baze University.");
+   if(onlineProfile?.id){
+    claimOnlineAmnestyAllowance().catch(error=>toast(error.message||"Your school allowance could not be processed."));
+   }else{
+    state.cash=(Number(state.cash)||0)+300000;
+    state.nextAmnestyAllowanceDay+=90;
+    toast("Amnesty allowance received: ₦300,000 from Baze University.");
+   }
   }
  }
  state.hour=Math.floor(total/60);state.minute=total%60;decayNeeds(state,minutes);
+}
+async function claimOnlineAmnestyAllowance(){
+ if(!onlineProfile?.id||state.studentBackground!=="amnesty")return;
+ const wallet=await applyOnlineWalletAction("amnesty_allowance",state.day);
+ state.cash=Number(wallet.balance)||0;
+ state.nextAmnestyAllowanceDay=Number(wallet.next_allowance_day)||state.nextAmnestyAllowanceDay+90;
+ updateHUD();savePlayer(state);
+ toast("Amnesty allowance received: ₦300,000 from Baze University.");
 }
 function gameTick(){if(!state||$("game-screen").hidden)return;advanceTime(1);updateHUD();savePlayer(state);}
 function openBedOptions(){
@@ -728,7 +740,8 @@ async function openBazeTalkConversation(user){
 async function refreshBazeTalkConversation(user,keepScroll=false){
  const stream=$("direct-message-stream");if(!stream||!onlineProfile?.id||!user?.id)return;
  const wasAtBottom=stream.scrollHeight-stream.scrollTop-stream.clientHeight<50;
- const [messages,transfers]=await Promise.all([loadDirectMessages(onlineProfile.id,user.id),loadWalletTransactions(user.id)]);
+ const [messages,transfers,wallet]=await Promise.all([loadDirectMessages(onlineProfile.id,user.id),loadWalletTransactions(user.id),loadStudentWallet()]);
+ state.cash=Number(wallet.balance)||0;updateHUD();savePlayer(state);
  const events=[...messages.map(data=>({kind:"message",created_at:data.created_at,data})),...transfers.map(data=>({kind:"transfer",created_at:data.created_at,data}))].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
  stream.innerHTML=events.map(event=>{
    const time=new Date(event.created_at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
