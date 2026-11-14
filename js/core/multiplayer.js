@@ -337,7 +337,7 @@ export async function sendCampusMessage(profile, body) {
   if (error) throw error;
 }
 
-export async function subscribeToCampus(profile, location, onPresence, onMessage, onDirectMessage=()=>{}, onStatus=()=>{}) {
+export async function subscribeToCampus(profile, location, onPresence, onMessage, onDirectMessage=()=>{}, onStatus=()=>{}, onWalletTransaction=()=>{}) {
   if (!client || !profile?.id) throw new Error("Online sign-in is required for campus presence.");
   if (communityChannel) await client.removeChannel(communityChannel);
 
@@ -383,6 +383,12 @@ export async function subscribeToCampus(profile, location, onPresence, onMessage
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, payload => onMessage(payload.new))
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages", filter: `recipient_id=eq.${profile.id}` }, payload => {
       if(payload?.new?.recipient_id===profile.id && payload.new.sender_id!==profile.id) onDirectMessage(payload.new);
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "student_wallet_transactions", filter: `recipient_id=eq.${profile.id}` }, payload => {
+      if(payload?.new?.recipient_id===profile.id) onWalletTransaction(payload.new);
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "student_wallet_transactions", filter: `sender_id=eq.${profile.id}` }, payload => {
+      if(payload?.new?.sender_id===profile.id) onWalletTransaction(payload.new);
     });
 
   await new Promise((resolve, reject) => {
