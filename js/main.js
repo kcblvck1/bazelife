@@ -7,7 +7,7 @@ import { renderFoodHTML, purchaseFood } from "./systems/restaurants.js";
 import { doTaxiRide, doTutoring, doFreelance } from "./systems/jobs.js";
 import { performActivity } from "./systems/activities.js";
 import { bindPhone } from "./interface/phone.js";
-import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition, saveOnlineGameSetup, initializeStudentWallet, loadStudentWallet, transferStudentCash, applyOnlineWalletAction, loadWalletTransactions } from "./core/multiplayer.js";
+import { initMultiplayer, multiplayerEnabled, registerOnlineStudent, loginOnlineStudent, logoutOnlineStudent, handleEmailConfirmationRedirect, loadRecentMessages, sendCampusMessage, subscribeToCampus, updateOnlineLocation, searchRegisteredUsers, loadDirectMessages, loadDirectInbox, sendDirectMessage, publishPlayerPosition, saveOnlineGameSetup, initializeStudentWallet, loadStudentWallet, transferStudentCash, applyOnlineWalletAction, loadWalletTransactions, assignHostelRoom } from "./core/multiplayer.js";
 
 const $=id=>document.getElementById(id);
 let state=null,world=null,phone=null,toastTimer=null,tickTimer=null,onlineProfile=null,liveChannel=null,livePresence={};
@@ -521,12 +521,17 @@ function openActivities(){openModal("Activities",`<section class="activities-tim
 function refreshRemotePlayers(){
  if(!world||world.mode!=="interior"||!state||!onlineProfile?.id)return;
  const players=Object.values(livePresence||{}).flat();
- const sameLocation=players.filter(player=>player?.user_id!==onlineProfile.id&&player?.location===state.location);
+ const sameLocation=players.filter(player=>player?.user_id!==onlineProfile.id&&player?.location===state.location&&(LOCATIONS.find(p=>p.name===state.location)?.type!=="hostel"||Number(player.room_number)===Number(onlineProfile.roomNumber)));
  world.localUserId=onlineProfile.id;
  world.setRemotePlayers(sameLocation);
 }
 async function connectCampusCommunity(){
  try{
+  if(LOCATIONS.find(p=>p.name===state.location)?.type==="hostel"){
+   const assignment=await assignHostelRoom(state.gender);
+   onlineProfile.roomNumber=assignment.roomNumber;onlineProfile.roomSlot=assignment.roomSlot;
+   world?.setHostelAssignment(assignment.roomNumber,assignment.roomSlot);
+  }
   liveChannel=await subscribeToCampus(onlineProfile,state.location,presence=>{
    livePresence=presence;
    refreshRemotePlayers();
