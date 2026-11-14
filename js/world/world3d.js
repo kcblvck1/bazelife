@@ -267,8 +267,12 @@ export class World3D {
       // The bedroom has three cutaway walls; the doorway-facing side stays open.
       this.add(box(12.2,3.5,.25,bedroomWall,0,1.75,-6.1));
       this.add(box(.25,3.5,12.2,trimWall,-6.1,1.75,0));
-      // Ensuite partition with a clear doorway into the bedroom.
+      // Ensuite partition leaves a doorway; add a proper hinged door panel in that opening.
       this.add(box(.25,3.5,1.7,trimWall,6.1,1.75,-4.95));
+      const bathroomDoor=new THREE.Group();bathroomDoor.position.set(6.1,0,-4.08);
+      bathroomDoor.add(box(.12,2.35,.92,mat(gender==="female"?0x8d6b86:0x795c45),.02,1.18,.48));
+      bathroomDoor.add(box(.16,.13,.1,mat(0xc9b88f),-.08,1.2,.9));
+      bathroomDoor.rotation.y=-.18;this.add(bathroomDoor);
       this.add(box(.25,3.5,1.7,trimWall,6.1,1.75,-2.25));
       this.add(box(.25,3.5,7.5,trimWall,6.1,1.75,2.35));
       this.add(box(5.7,3.5,.25,bedroomWall,8.95,1.75,-5.8));
@@ -330,7 +334,12 @@ export class World3D {
       const bathtub=new THREE.Group();bathtub.position.set(10.45,0,-4.95);bathtub.userData.fixtureAction="shower";
       bathtub.add(box(2.35,.18,1.78,mat(0x879da2),0,.18,0));bathtub.add(box(2.35,.42,.14,mat(0xe6e9e7),0,.42,-.82));bathtub.add(box(2.35,.42,.14,mat(0xe6e9e7),0,.42,.82));bathtub.add(box(.14,.42,1.78,mat(0xe6e9e7),-1.1,.42,0));bathtub.add(box(.14,.42,1.78,mat(0xe6e9e7),1.1,.42,0));bathtub.add(box(2.08,.035,1.48,new THREE.MeshStandardMaterial({color:0x75b8ce,transparent:true,opacity:.46}),0,.31,0));
       const showerHead=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),mat(0xb8c4c8,.35));showerHead.position.set(.68,2.35,-.38);bathtub.add(showerHead);bathtub.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.add(bathtub);this.clickables.push(bathtub);
-      const toilet=new THREE.Group();toilet.position.set(7.1,0,-4.65);toilet.userData.fixtureAction="toilet";toilet.add(box(.8,.82,.9,mat(0xf0eee9),0,.42,0));const pan=new THREE.Mesh(new THREE.CylinderGeometry(.39,.34,.18,20),mat(0xf8f7f3));pan.position.set(0,.88,0);toilet.add(pan);toilet.add(box(.82,1.15,.22,mat(0xf6f5f1),0,.58,-.73));toilet.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.add(toilet);this.clickables.push(toilet);
+      const toilet=new THREE.Group();toilet.position.set(7.1,0,-4.65);toilet.userData.fixtureAction="toilet";
+      toilet.add(box(.78,.72,.82,mat(0xf0eee9),0,.36,0));
+      const pan=new THREE.Mesh(new THREE.TorusGeometry(.31,.075,10,24),mat(0xf8f7f3));pan.rotation.x=Math.PI/2;pan.position.set(0,.76,.02);toilet.add(pan);
+      toilet.add(box(.78,1.12,.2,mat(0xf6f5f1),0,.56,-.67));
+      toilet.add(box(.66,.08,.68,mat(0xe4e5e2),0,.78,.02));
+      toilet.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.add(toilet);this.clickables.push(toilet);
 // Vanity cabinet and inset basin.
       addBox(1.45,.92,.82,0x8c684f,10.65,.48,-2.05);
       addBox(1.52,.12,.9,0xe7e8e4,10.65,1.0,-2.05);
@@ -366,15 +375,23 @@ export class World3D {
       }
       if(type==="library")for(let i=0;i<3;i++)addBox(1.1,4.5,2.0,0x806f58,-10+i*2,2,-3);
     }else if(type==="restaurant"){
-      // Distinct dining room: front reception/cashier counter, tables, chairs,
-      // pendant lights and uniformed waiters (not a classroom layout).
-      addBox(14,1.25,1.8,0x8b6548,0,1.05,-9);addBox(14,.18,2,0xd6b58a,0,1.78,-9);
+      // Distinct dining room: the counter is a clickable service point.
+      const serviceCounter=new THREE.Group();serviceCounter.position.set(0,0,-9);
+      serviceCounter.userData.fixtureAction="counter";
+      serviceCounter.add(box(14,1.25,1.8,mat(0x8b6548),0,1.05,0));
+      serviceCounter.add(box(14,.18,2,mat(0xd6b58a),0,1.78,0));
+      serviceCounter.add(box(13.7,.08,.12,mat(0x4d382b),0,1.88,1.02));
+      this.add(serviceCounter);this.clickables.push(serviceCounter);
       addBox(2.2,1.8,.18,0x6f8794,-5,2.0,-10.0);addBox(2.4,.2,.22,0xe9eceb,-5,3.0,-10.0);
       const table=(x,z)=>{addBox(3.1,.18,2.3,0x8a6041,x,1.05,z);for(const dx of [-1.25,1.25])for(const dz of [-.75,.75])addBox(.16,.9,.16,0x57483d,x+dx,.5,z+dz);for(const [cx,cz] of [[-2.15,0],[2.15,0],[0,-1.8],[0,1.8]]){addBox(.85,.15,.85,0x9c7653,x+cx,.72,z+cz);addBox(.12,.7,.12,0x58483b,x+cx,.35,z+cz);}};
       for(const [x,z] of [[-6,-2],[0,-2],[6,-2],[-6,5],[0,5],[6,5]])table(x,z);
       for(const x of [-7,0,7]){const light=new THREE.PointLight(0xffdca8,.8,12);light.position.set(x,5,2);this.add(light);this.npcs.push(...[]);}
-      // Waiters wear coordinated dark aprons over light shirts and move between tables.
-      for(let i=0;i<3;i++){const waiter=this.makeHuman(-5+i*5,-7,.9,0xf0eee7);waiter.add(box(.38,.5,.08,mat(0x303942),0,.96,.24));waiter.userData.walk.speed=.35;waiter.userData.walk.radius=2.1;}
+      // Staff stay behind the service counter, facing the dining area.
+      for(let i=0;i<3;i++){
+        const waiter=this.makeHuman(-4.4+i*4.4,-10.35,.9,0xf0eee7);
+        waiter.add(box(.38,.5,.08,mat(0x303942),0,.96,.24));
+        waiter.rotation.y=0;waiter.userData.walk.speed=.08;waiter.userData.walk.radius=.18;
+      }
       const guests=[[-8.15,-2,Math.PI/2],[2.15,-2,-Math.PI/2],[-6,7,0],[6,3,Math.PI]];
       guests.forEach(([x,z,rot],i)=>{
         const guest=this.makeHuman(x,z,.82,[0x4d7a99,0xa57553,0x718c6a,0x9b7195][i]);
@@ -543,7 +560,14 @@ export class World3D {
   showFixturePose(action,duration,onDone){
     if(!this.player){onDone();return;}this.player.visible=false;
     const g=this.makeHuman(0,0,.72,this.currentGender==="female"?0x9b6b91:0x527b9b,this.currentGender,this.avatarAppearance);this.npcs=this.npcs.filter(n=>n!==g);g.userData.walk.speed=0;g.userData.walk.radius=0;
-    if(action==="toilet"){g.position.set(7.1,.48,-4.12);g.rotation.y=Math.PI;g.userData.torso.position.y=.68;g.userData.head.position.y=1.10;g.userData.legs?.forEach(leg=>{leg.position.y=.52;leg.rotation.x=-Math.PI/2;});g.userData.arms?.forEach(arm=>{arm.position.y=.86;arm.rotation.x=-.45;});}
+    if(action==="toilet"){
+      // Seated pose: lower the hips onto the pan, bend knees forward and keep feet planted.
+      g.position.set(7.1,.18,-4.02);g.rotation.y=Math.PI;
+      g.userData.torso.position.y=.82;g.userData.torso.rotation.x=.12;
+      g.userData.head.position.y=1.34;
+      g.userData.legs?.forEach((leg,i)=>{leg.position.y=.53;leg.position.x=i===0?-.13:.13;leg.rotation.x=-1.12;leg.rotation.z=i===0?-.08:.08;});
+      g.userData.arms?.forEach((arm,i)=>{arm.position.y=.92;arm.rotation.x=-.28;arm.rotation.z=i===0?.12:-.12;});
+    }
     else{g.position.set(10.45,.28,-4.95);g.userData.arms?.forEach((arm,i)=>{arm.rotation.x=-.35;arm.rotation.z=i===0?.35:-.35;});}
     this.fixtureAvatar=g;
     if(action==="shower"){const water=new THREE.Group();for(let i=0;i<10;i++){const drop=new THREE.Mesh(new THREE.SphereGeometry(.045,6,6),new THREE.MeshBasicMaterial({color:0x9adcf0}));drop.position.set(10.05+(i%4)*.22,1.65+((i%3)*.15),-5.18+Math.floor(i/4)*.2);water.add(drop);}this.add(water);this.fixtureWater=water;}
