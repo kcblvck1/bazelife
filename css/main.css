@@ -231,3 +231,142 @@ body,.game-screen{background:#34383d;color:#e4e7eb}
 .bazetalk-transfer-form label{font-size:11px;font-weight:800;color:var(--ink)}
 .bazetalk-transfer-form input{width:100%;padding:12px;border:1px solid #d8e1e9;border-radius:9px;font:inherit}
 .bazetalk-transfer-form button{padding:12px}
+
+
+/* BAZE LIFE visual clarity pass — retain the charcoal / slate-blue identity. */
+:root{
+  color-scheme:dark;
+  --ink:#f0f3f6;
+  --muted:#b5bec8;
+  --blue:#7894b2;
+  --blue2:#9bb1c8;
+  --sky:#343c45;
+  --line:#4a5561;
+  --panel:#2b3138;
+  --green:#82b895;
+  --gold:#e0b968;
+  --red:#e18a8c;
+  --shadow:0 12px 32px #0006;
+}
+body,.game-screen,.map-screen{background:#34383d;color:#f0f3f6}
+p,small,.muted,.empty-note,.task-card p,.hint-card p,.world-heading p:not(.eyebrow){color:#b8c2cc}
+button{color:inherit}
+input,textarea,select{
+  color:#f4f6f8!important;background:#20262c!important;
+  border:1px solid #596572!important;
+}
+input::placeholder,textarea::placeholder{color:#aeb9c4;opacity:1}
+:focus-visible{outline-color:#a9c5df!important}
+.topbar,.needs-strip,.auth-card,.auth-side,.activity-card,.actions-card,.card,
+.modal,.modal-content,.quick-card,.task-card,.hint-card{
+  background:#292f36!important;color:#f0f3f6!important;border-color:#4a5561!important;
+}
+.topbar{border-bottom-color:#4a5561}
+.top-pill,.phone-teaser-body,.quick-card>button,.card-heading button,
+.quiet-button,.secondary-button,.action-buttons button{
+  background:#3a444e!important;color:#f1f4f7!important;
+}
+.top-pill small,.brand-lockup small,.need>div,.need b{color:#c0cad4}
+.cash-pill{background:#294b39!important;color:#c8f0d4!important}
+.primary,.modal-row button,.social-profile-row button{
+  background:#647f9e!important;color:#fff!important;
+}
+.primary:hover{background:#7895b4!important}
+.secondary-button:hover,.quiet-button:hover,.action-buttons button:hover,
+.quick-card>button:hover{background:#4a5866!important}
+.activity-icon,.phone-mini{background:#3c5268!important;color:#f2f6fa!important}
+.need i,.goal-progress{background:#4a535d}
+.need i span,.goal-progress span{background:#82b895}
+.scene-frame,.map-screen-body{border-color:#465462}
+.scene-chip,.scene-tip,.map-legend{
+  background:#252c33f2!important;color:#f1f4f7!important;border-color:#56616c!important;
+}
+.map-marker,.map-controls button,.map-back-button{
+  background:#303a44!important;color:#fff!important;border-color:#657382!important;
+}
+.map-marker.active{background:#66552f!important;color:#fff2cb!important}
+.modal-backdrop .modal,.modal,.modal-content{background:#292f36!important;color:#f0f3f6!important}
+.modal-header,.modal-row{border-color:#4a5561!important}
+.modal-header button{background:#3b4651!important;color:#fff!important}
+.modal-row small{color:#b5bec8}
+.toast{background:#1e2832;color:#fff;border:1px solid #63788d}
+
+/* Phone shell: stronger separation between screen, cards, labels and controls. */
+.phone-shell{background:#172432;border-color:#111a23;color:#f4f7fa}
+.phone-status{color:#e8eef4}
+.phone-home{
+  background:linear-gradient(155deg,#354656 0%,#293744 100%)!important;
+  color:#f4f7fa!important;border:1px solid #536476;
+}
+.phone-greeting small{color:#c0d0df}
+.phone-greeting h2{color:#fff}
+.phone-greeting p{color:#d0dae3}
+.phone-app-grid button{color:#f1f5f8!important;text-shadow:0 1px 2px #0005}
+.app-icon{border:1px solid #ffffff45;box-shadow:0 4px 12px #07152270}
+.phone-dock{background:#172432e8;border:1px solid #607286;color:#fff}
+.phone-bottom button{background:#7894b2;color:#101b26;font-weight:900}
+.phone-overlay{background:#0c1520c9}
+.phone-notch{background:#0c131b}
+
+/* BazeTalk keeps its light conversation canvas, but all text and actions stay legible. */
+.bazetalk-view{background:#202a34!important;color:#f1f5f8!important;border:1px solid #536273}
+.bazetalk-header{background:#243b55!important;color:#fff}
+.bazetalk-header small{color:#e0e9f1}
+.bazetalk-search-form,.bazetalk-chat-header,.bazetalk-compose{
+  background:#303b47!important;border-color:#526171!important;
+}
+.bazetalk-search-form input,.bazetalk-compose input{
+  background:#202a34!important;color:#fff!important;border-color:#627487!important;
+}
+.bazetalk-contact-list,.bazetalk-search-results{background:#26323e!important}
+.bazetalk-contact{
+  background:#26323e!important;color:#f2f5f8!important;border-color:#465564!important;
+}
+.bazetalk-contact:hover{background:#344657!important}
+.bazetalk-contact-copy b,.bazetalk-chat-header b{color:#fff!important}
+.bazetalk-contact-copy small,.bazetalk-contact-meta,.bazetalk-chat-header small,
+.bazetalk-section-label,.bazetalk-empty{color:#c0ccd7!important}
+.bazetalk-avatar{background:#40566c!important;color:#fff}
+.bazetalk-chat-header>button,#bazetalk-send-money{
+  background:#40566c!important;color:#fff!important;border-color:#6b8196!important;
+}
+.bazetalk-messages{background:#202a34!important}
+.bazetalk-message{background:#344352!important;color:#f5f7f9!important}
+.bazetalk-message.outgoing{background:#405d78!important;color:#fff!important}
+.bazetalk-message time{color:#d0dae3!important}
+.bazetalk-transfer{background:#344a5d!important;border-color:#61788e!important;color:#f1f5f8!important}
+.bazetalk-transfer.outgoing{background:#294b39!important;border-color:#527d60!important;color:#e3f5e8!important}
+.bazetalk-wallet-balance{background:#344657!important;color:#f4f7fa!important}
+.bazetalk-wallet-balance b{color:#d9e9f7!important}
+.bazetalk-transfer-form label{color:#f0f3f6!important}
+.bazetalk-transfer-form input{background:#202a34!important;color:#fff!important;border-color:#627487!important}
+.bazetalk-search-form button,.bazetalk-compose button{background:#7894b2!important;color:#142231!important}
+@media(max-width:600px){
+  .topbar{background:#292f36!important}
+  .top-stats{flex-wrap:wrap}
+  .top-pill{flex:1 1 28%;min-height:42px}
+  .needs-strip{background:#292f36!important}
+  .world-heading-actions{flex-direction:row;flex-wrap:wrap}
+  .world-heading-actions button{min-height:38px}
+  .side-column{grid-template-columns:1fr}
+  .phone-overlay{padding:5px}
+  .phone-shell{width:min(340px,98vw);height:min(700px,96dvh);max-height:96dvh}
+  .phone-home{padding:17px 14px}
+  .phone-app-grid{gap:17px 10px}
+  .phone-app-grid button{font-size:10px;min-height:75px}
+  .app-icon{width:52px;height:52px;font-size:25px}
+  .bazetalk-header{min-height:58px}
+  .bazetalk-search-form{padding:10px}
+  .bazetalk-search-form input,.bazetalk-compose input{font-size:13px;min-height:42px}
+  .bazetalk-compose{padding:9px}
+  .bazetalk-compose button{width:42px;height:42px;flex:0 0 42px}
+  .bazetalk-contact{min-height:66px}
+  .bazetalk-message,.bazetalk-transfer{max-width:92%}
+  .modal-backdrop{padding:8px}
+  .modal{max-height:92dvh;padding:16px}
+}
+/* Ensure muted copy never falls below readable contrast on small displays. */
+@media(max-width:600px){
+  .task-card p,.hint-card p,.phone-teaser-body p,.phone-greeting p,
+  .bazetalk-contact-copy small,.bazetalk-chat-header small{color:#c0ccd7}
+}
