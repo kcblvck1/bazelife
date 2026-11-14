@@ -152,3 +152,18 @@ begin
   end if;
 end;
 $$;
+
+
+-- Keep BazeTalk virtual-currency transfers live for both players.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'student_wallet_transactions'
+  ) then
+    alter publication supabase_realtime add table public.student_wallet_transactions;
+  end if;
+end;
+$$;

@@ -536,6 +536,8 @@ async function connectCampusCommunity(){
    if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){
     console.warn("Supabase Realtime status:",status);
    }
+  },transaction=>{
+   handleWalletTransaction(transaction).catch(error=>console.warn("BazeTalk wallet update handler failed.",error));
   });
   refreshRemotePlayers();
   if(presenceTimer)clearInterval(presenceTimer);
@@ -751,7 +753,7 @@ async function refreshBazeTalkConversation(user,keepScroll=false){
    const time=new Date(event.created_at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
    if(event.kind==="transfer"){
     const outgoing=event.data.sender_id===onlineProfile.id;
-    return `<article class="bazetalk-transfer ${outgoing?"outgoing":""}"><b>${outgoing?"↗ Money sent":"↙ Money received"}</b><strong>${money(event.data.amount)}</strong><time>${time}</time></article>`;
+    return `<article class="bazetalk-transfer ${outgoing?"outgoing":""}"><b>${outgoing?"↗ Baze cash sent":"↙ Baze cash received"}</b><strong>${money(event.data.amount)}</strong><time>${time}</time></article>`;
    }
    const outgoing=event.data.sender_id===onlineProfile.id;
    return `<article class="bazetalk-message ${outgoing?"outgoing":""}"><p>${escapeHTML(event.data.body||"")}</p><time>${time}</time></article>`;
@@ -780,6 +782,24 @@ async function handleIncomingDirectMessage(message){
    if(conversationOpen&&directChatTarget)await refreshBazeTalkConversation(directChatTarget,true);
  }
 }
+async function handleWalletTransaction(transaction){
+ const currentUserId=onlineProfile?.id;
+ if(!transaction?.id||!currentUserId||!state)return;
+ const incoming=transaction.recipient_id===currentUserId;
+ const outgoing=transaction.sender_id===currentUserId;
+ if(!incoming&&!outgoing)return;
+ const peerId=incoming?transaction.sender_id:transaction.recipient_id;
+ try{
+  const wallet=await loadStudentWallet();
+  state.cash=Number(wallet.balance)||0;updateHUD();savePlayer(state);
+  const conversationOpen=!$("bazetalk-view").hidden&&!$("bazetalk-conversation").hidden&&directChatTarget?.id===peerId;
+  if(conversationOpen)await refreshBazeTalkConversation(directChatTarget,true);
+  if(incoming)toast(`You received ${money(transaction.amount)} in Baze cash.`);
+ }catch(error){
+  console.warn("Baze cash balance could not refresh after a transfer.",error);
+  if(incoming)toast("A Baze cash transfer arrived, but your wallet could not refresh.");
+ }
+}
 function openProfile(){
  const backgroundLabel=state.studentBackground==="nepo"?"Nepo Baby":state.studentBackground==="amnesty"?"Amnesty Student":"Middle Class";
  const allowance=state.studentBackground==="amnesty"?`<div class="modal-row"><div><b>School allowance</b><small>₦300,000 every 90 in-game days · Next payment: Day ${state.nextAmnestyAllowanceDay}</small></div><strong>₦300k</strong></div>`:"";
@@ -788,17 +808,17 @@ function openProfile(){
 async function openWallet(){
  const note=state.studentBackground==="nepo"?"You began as a Nepo Baby with ₦500,000.":state.studentBackground==="amnesty"?"You began with ₦100,000. Baze University pays you ₦300,000 every 90 in-game days.":"You began as a Middle Class student with ₦100,000.";
  if(onlineProfile?.id){try{const wallet=await loadStudentWallet();state.cash=Number(wallet.balance)||0;updateHUD();savePlayer(state);}catch(error){toast(error.message||"Could not refresh your wallet.");}}
- openModal("Wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">${note} Earn extra money through ProTaxi, tutoring and freelancing. Your online wallet balance is shared across devices.</p>`);
+ openModal("Baze wallet",`<h2 style="font-size:28px;margin:5px 0 15px">${money(state.cash)}</h2><p class="empty-note">${note} Baze cash is virtual in-game currency only; it has no real-world cash value. Earn more through ProTaxi, tutoring and freelancing. Your online game balance is shared across devices.</p>`);
 }
 function openSendMoneyDialog(user){
- openModal("Send Baze cash",`<p class="empty-note">Send money securely to <b>${escapeHTML(user.display_name||user.username)}</b> (@${escapeHTML(user.username)}).</p><div class="bazetalk-wallet-balance">Available balance <b>${money(state.cash)}</b></div><form id="bazetalk-transfer-form" class="bazetalk-transfer-form"><label for="bazetalk-transfer-amount">Amount (₦)</label><input id="bazetalk-transfer-amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" placeholder="Enter amount" required><button class="primary" type="submit">Confirm transfer</button></form><p id="bazetalk-transfer-status" class="empty-note" role="status"></p>`);
+ openModal("Send Baze cash",`<p class="empty-note">Send virtual Baze cash to <b>${escapeHTML(user.display_name||user.username)}</b> (@${escapeHTML(user.username)}). This is in-game currency only; no real money is involved.</p><div class="bazetalk-wallet-balance">Available balance <b>${money(state.cash)}</b></div><form id="bazetalk-transfer-form" class="bazetalk-transfer-form"><label for="bazetalk-transfer-amount">Amount (game cash · ₦)</label><input id="bazetalk-transfer-amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" placeholder="Enter amount" required><button class="primary" type="submit">Send Baze cash</button></form><p id="bazetalk-transfer-status" class="empty-note" role="status"></p>`);
  const form=$("bazetalk-transfer-form");
  form.onsubmit=async event=>{
   event.preventDefault();const input=$("bazetalk-transfer-amount"),button=form.querySelector("button"),status=$("bazetalk-transfer-status"),amount=Number(input.value);
   if(!Number.isSafeInteger(amount)||amount<1){status.textContent="Enter a valid whole-number amount.";return;}
-  if(amount>Number(state.cash||0)){status.textContent="You do not have enough money.";return;}
+  if(amount>Number(state.cash||0)){status.textContent="You do not have enough Baze cash.";return;}
   button.disabled=true;status.textContent="Processing transfer…";
-  try{const result=await transferStudentCash(user.id,amount);state.cash=Number(result.sender_balance)||0;updateHUD();savePlayer(state);closeModal();await refreshBazeTalkConversation(user,true);toast(`You sent ${money(amount)} to @${user.username}.`);}
+  try{const result=await transferStudentCash(user.id,amount);state.cash=Number(result.sender_balance)||0;updateHUD();savePlayer(state);closeModal();await refreshBazeTalkConversation(user,true);toast(`You sent ${money(amount)} Baze cash to @${user.username}.`);}
   catch(error){status.textContent=error.message||"Transfer failed. Your wallet was not changed.";button.disabled=false;}
  };
 }
