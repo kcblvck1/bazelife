@@ -816,7 +816,7 @@ function openSendMoneyDialog(user){
  form.onsubmit=async event=>{
   event.preventDefault();const input=$("bazetalk-transfer-amount"),button=form.querySelector("button"),status=$("bazetalk-transfer-status"),amount=Number(input.value);
   if(!Number.isSafeInteger(amount)||amount<1){status.textContent="Enter a valid whole-number amount.";return;}
-  if(amount>Number(state.cash||0)){status.textContent="You do not have enough money.";return;}
+  if(amount>Number(state.cash||0)){status.textContent="You do not have enough Baze cash.";return;}
   button.disabled=true;status.textContent="Processing transfer…";
   try{const result=await transferStudentCash(user.id,amount);state.cash=Number(result.sender_balance)||0;updateHUD();savePlayer(state);closeModal();await refreshBazeTalkConversation(user,true);toast(`You sent ${money(amount)} Baze cash to @${user.username}.`);}
   catch(error){status.textContent=error.message||"Transfer failed. Your wallet was not changed.";button.disabled=false;}
